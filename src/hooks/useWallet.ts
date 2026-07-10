@@ -6,7 +6,6 @@ import { polygon } from "viem/chains";
 import {
   POLYGON_CHAIN_ID,
   POLYGON_CHAIN_ID_HEX,
-  POLYGON_CHAIN_PARAMS,
 } from "@/config/contract";
 import type { Eip1193Provider, WalletProviderInfo } from "@/lib/eip1193";
 import { normalizeContractError, type AppError } from "@/lib/contractErrors";
@@ -202,15 +201,7 @@ export function useWallet() {
       });
       setState((current) => ({ ...current, chainId: POLYGON_CHAIN_ID, error: undefined }));
     } catch (error) {
-      const message = error instanceof Error ? error.message : "";
-      if (message.includes("4902") || message.toLowerCase().includes("unrecognized")) {
-        await state.provider.request({
-          method: "wallet_addEthereumChain",
-          params: [POLYGON_CHAIN_PARAMS],
-        });
-        setState((current) => ({ ...current, chainId: POLYGON_CHAIN_ID, error: undefined }));
-        return;
-      }
+      // No public fallback RPC is bundled. Users configure unknown networks in their wallet.
       setState((current) => ({ ...current, error: normalizeContractError(error) }));
     }
   }, [state.provider]);

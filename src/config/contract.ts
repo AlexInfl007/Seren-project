@@ -2,7 +2,6 @@ import { getAddress, parseAbi, parseEther, type Abi } from "viem";
 
 export const POLYGON_CHAIN_ID = 137;
 export const POLYGON_CHAIN_ID_HEX = "0x89";
-export const POLYGON_RPC_URLS = ["https://polygon-rpc.com"];
 export const POLYGON_EXPLORER = "https://polygonscan.com";
 export const CONTRACT_ADDRESS = getAddress(
   "0xf90169AD413429af4AE0a3B8962648d4a3289011",
@@ -48,15 +47,3 @@ export const HISTORY_SCAN_CONFIG = {
 };
 
 export const CONTRACT_LINK = `${POLYGON_EXPLORER}/address/${CONTRACT_ADDRESS}`;
-
-export const POLYGON_CHAIN_PARAMS = {
-  chainId: POLYGON_CHAIN_ID_HEX,
-  chainName: "Polygon Mainnet",
-  nativeCurrency: {
-    name: "POL",
-    symbol: "POL",
-    decimals: 18,
-  },
-  rpcUrls: POLYGON_RPC_URLS,
-  blockExplorerUrls: [POLYGON_EXPLORER],
-};

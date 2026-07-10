@@ -1,61 +1,91 @@
 # Seren Lottery Chain
 
-Production-oriented frontend for the Seren Lottery Chain Polygon lottery contract.
+Production frontend for the verified Seren Lottery Chain contract on Polygon Mainnet. The UI never invents live blockchain data: lottery state and event history appear only after an explicit wallet connection and are read through that wallet's EIP-1193 provider.
 
-## Installation
+- Production repository: `AlexInfl007/Seren-project`
+- Visual reference only: `AlexInfl007/serenlotterychain`
+- Contract: [`0xf90169AD413429af4AE0a3B8962648d4a3289011`](https://polygonscan.com/address/0xf90169AD413429af4AE0a3B8962648d4a3289011#code)
+- Network: Polygon Mainnet (`137` / `0x89`)
+
+## Stack
+
+Next.js 15 App Router, React 18, strict TypeScript, viem, EIP-6963 injected-wallet discovery, optional WalletConnect, Vitest, Testing Library, and ESLint.
+
+## Setup
 
 ```bash
+git clone https://github.com/AlexInfl007/Seren-project.git
+cd Seren-project
 npm install
-```
-
-## Local Development
-
-```bash
+copy .env.example .env.local
 npm run dev
 ```
 
-Open the local URL shown by Next.js.
-
-## Build And Checks
+Checks:
 
 ```bash
 npm run typecheck
+npm run lint
 npm run test
 npm run build
 ```
 
-## Environment Variables
+## Environment
 
-```bash
-NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID=
-```
+| Variable | Required | Purpose |
+| --- | --- | --- |
+| `NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID` | No | Enables WalletConnect; injected wallets work without it. |
+| `NEXT_PUBLIC_SITE_URL` | Production | Canonical origin used by metadata, robots, and sitemap. |
 
-`NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID` is optional. If it is omitted, injected browser wallets still work and WalletConnect is not enabled.
+Both values are public client configuration, never secrets. No private key, mnemonic, explorer API key, or public fallback RPC is used.
 
-## Contract Adapter
+## Verified contract boundary
 
-The contract boundary is centralized in `src/config/contract.ts` and `src/lib/contractAdapter.ts`.
+The ABI was checked against the PolygonScan verified source and ABI on 10 July 2026. The address is a direct verified contract, not a proxy. The application deliberately ships only the ABI fragments it calls or decodes.
 
-It defines:
+Confirmed purchase path:
 
-- Polygon Mainnet chain ID `137`;
-- contract address `0xf90169AD413429af4AE0a3B8962648d4a3289011`;
-- deployment block `76819613`;
-- the minimal ABI used by the app;
-- the verified public purchase function `buyTicket()`;
-- ticket and winner event definitions;
-- adaptive history scanning settings.
+- `buyTicket()` is `payable` and accepts no arguments.
+- `TICKET_PRICE()` and `ticketPrice()` are present; the verified source defines `TICKET_PRICE = 30 ether` and `ticketPrice()` returns it.
+- The exact live value is read again before simulation and used as transaction `value`.
+- One `buyTicket()` call appends one ticket. Multiple tickets require separate user-confirmed transactions.
+- The app simulates the ABI-encoded call, asks for explicit confirmation, submits through the connected wallet, waits for a receipt, and refreshes state.
 
-Live lottery reads are performed only after the user explicitly connects a wallet and the wallet is on Polygon Mainnet. Reads use the connected EIP-1193 wallet provider. The app does not perform server-side reads, explorer API reads, background polling, or fake data rendering.
+Implemented reads: `prizePool`, `round`, `ticketsCount`, `ticketsOf(address)`, `ticketPrice`, `TICKET_PRICE`, `open`, `emergencyActive`, `maxTicketsPerRound`, and `maxTicketsPerAddress`.
 
-## Purchase Method Verification
+Implemented events: `TicketBought`, `WinnerRequested`, `WinnerPicked`, and `RoundReset`. History scanning starts at block `76819613`, uses bounded adaptive ranges, and fails visibly when a wallet RPC restricts `eth_getLogs`.
 
-Before purchases are enabled, the app validates that `buyTicket()` exists in the adapter ABI, is payable, and takes no arguments. It then reads the live ticket price and simulates the exact payable call with that value. The wallet transaction is only submitted after successful simulation.
+## Wallet-only architecture
 
-The app does not call `enterRaffle()`, fallback handlers, `receive()`, or plain native-token transfers for ticket purchases.
+There are no server-side chain reads, explorer API reads, background polling, or bundled RPC endpoints. Until a user explicitly connects a wallet on chain 137, the UI shows locked or unavailable states instead of sample metrics. Network switching uses `wallet_switchEthereumChain`; if a wallet does not know Polygon, the user must configure it in the wallet.
 
-## History
+Wallet listeners are cleaned up. Account or chain changes clear live state, pending presentation, and session history. Contract address, chain ID, ABI, and scan settings are centralized in `src/config/contract.ts`.
 
-Recent activity and winners are loaded from contract event logs through the connected wallet provider. The scanner starts from deployment block `76819613`, uses bounded ranges, reduces range size when providers reject large requests, and stores session-only history cache in `sessionStorage`.
+## Verified facts vs published project claims
 
-Some wallet RPC providers restrict `eth_getLogs`. In that case, the UI shows a clear unavailable state and links users to PolygonScan.
+Verified from PolygonScan source/ABI: verified non-proxy contract, 30 POL constant ticket price, one ticket per `buyTicket()` call, 10% fee constant (`FEE_BPS = 1000`, denominator 10,000), VRF coordinator call and related events, current configurable ticket-limit getters, and winner/payout event shapes.
+
+Not presented as live facts without wallet reads: current pool, round, sold tickets, per-user tickets, open/emergency status, current owner-adjustable limits, winners, activity, or balances. A 1,000,000 POL target is a published project claim but is not encoded as a target constant in the verified contract and is therefore not displayed as an on-chain fact or progress denominator.
+
+## Languages and accessibility
+
+English, Russian, Spanish, Simplified Chinese, Hindi, Arabic, French, and Portuguese are included. The interface supports keyboard navigation, visible focus states, semantic controls, reduced motion, responsive layouts, and RTL presentation for Arabic.
+
+## Security assumptions
+
+- No automatic transactions, raw `eth_sendTransaction`, fallback purchase method, or arbitrary calldata.
+- Chain ID, contract address, verified ABI fragment, live price, simulation, revert, pending state, and receipt are checked.
+- Duplicate submission is disabled while a transaction is active.
+- Security headers include clickjacking, MIME-sniffing, referrer, permissions, and opener protections while retaining wallet popup compatibility.
+- Frontend validation supplements rather than replaces contract enforcement.
+- Participation can result in loss and may be restricted by local law; the site provides no financial or legal advice.
+
+## Vercel deployment
+
+Import `AlexInfl007/Seren-project`, use the default Next.js settings, set `NEXT_PUBLIC_SITE_URL` to the final HTTPS origin, and optionally set a WalletConnect Cloud project ID whose allowlist contains that origin. Deploy only after all four checks above pass.
+
+## Known limitations
+
+Wallet RPCs can reject large log queries or omit archive access, so event history may be unavailable even when direct reads work. WalletConnect is disabled when no project ID is configured. The UI does not claim that a draw starts at a fixed time or pool target because the verified contract exposes no countdown or target-pool trigger.
+
+See [`IMPLEMENTATION_REPORT.md`](./IMPLEMENTATION_REPORT.md) for the audit and delivery record.
