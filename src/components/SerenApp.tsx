@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Copy,
   ExternalLink,
+  Gift,
   Lock,
   Menu,
   RefreshCcw,
@@ -17,6 +18,7 @@ import {
   Users,
   Wallet,
   X,
+  Zap,
 } from "lucide-react";
 import type { Hash } from "viem";
 import {
@@ -53,9 +55,8 @@ type SimulationState =
 function Brand({ footer = false }: { footer?: boolean }) {
   return (
     <Link href="#home" className={`brand-logo ${footer ? "footer-brand" : ""}`} aria-label="Seren Lottery Chain">
-      <Image src="/assets/logo.png" alt="" width={footer ? 34 : 30} height={footer ? 34 : 30} />
       <span>Seren</span>
-      <span>Lottery Chain</span>
+      <span className="brand-lottery"><i aria-hidden="true">◊</i>Lottery</span>
     </Link>
   );
 }
@@ -385,19 +386,7 @@ export default function SerenApp() {
 
       <section className="hero-banner" aria-label="Seren Lottery Chain">
         <Image src="/assets/Banner.png" alt="Seren Lottery Chain on Polygon" fill priority sizes="100vw" />
-        <div className="hero-copy">
-          <span>{t.hero.eyebrow}</span>
-          <h1>{t.hero.heading}</h1>
-          <p>{t.hero.body}</p>
-          <div>
-            <button type="button" className="primary-button" onClick={openWallet}>
-              <Wallet size={18} /> {wallet.account ? shortenAddress(wallet.account) : t.wallet.connect}
-            </button>
-            <Link className="outline-button" href={CONTRACT_LINK} target="_blank">
-              {t.hero.contract} <ExternalLink size={15} />
-            </Link>
-          </div>
-        </div>
+        <h1 className="sr-only">{t.hero.heading}</h1>
       </section>
 
       <section id="buy" className="content-grid">
@@ -419,30 +408,32 @@ export default function SerenApp() {
             <Stat label={t.dashboard.currentRound} value={formatCount(lotteryState?.round)} locked={locked} accent />
             <Stat label={t.dashboard.prizePool} value={formatPol(lotteryState?.prizePool)} locked={locked} />
             <Stat label={t.dashboard.ticketsInDraw} value={formatCount(lotteryState?.ticketsCount)} locked={locked} />
-            <Stat label={t.dashboard.yourTickets} value={formatCount(lotteryState?.userTickets)} locked={locked} />
             <Stat label={t.dashboard.ticketPrice} value={formatPol(lotteryState?.ticketPrice)} locked={locked} />
-            <Stat label={t.dashboard.drawStatus} value={lotteryState?.open ? t.dashboard.open : t.dashboard.closed} locked={locked} />
-            <Stat label={t.dashboard.emergency} value={lotteryState?.emergencyActive ? t.dashboard.emergency : t.dashboard.normal} locked={locked} />
-            {lotteryState?.maxTicketsPerRound && <Stat label={t.dashboard.maxPerRound} value={formatCount(lotteryState.maxTicketsPerRound)} />}
-            {lotteryState?.maxTicketsPerAddress && <Stat label={t.dashboard.maxPerAddress} value={formatCount(lotteryState.maxTicketsPerAddress)} />}
           </div>
 
-          {locked && (
-            <div className="locked-state">
-              <Lock size={18} />
-              <span>{wallet.account && !wallet.isPolygon ? t.wallet.wrongNetwork : t.dashboard.subtitleLocked}</span>
+          <div className="verified-state-band">
+            <span className="round-icon">{dataAllowed ? <Shield /> : <Lock />}</span>
+            <div>
+              <strong>{dataAllowed ? (lotteryState?.open ? t.dashboard.open : t.dashboard.closed) : t.dashboard.subtitleLocked}</strong>
+              <p>
+                {dataAllowed
+                  ? `${t.dashboard.yourTickets}: ${formatCount(lotteryState?.userTickets)} · ${t.dashboard.emergency}: ${lotteryState?.emergencyActive ? t.dashboard.emergency : t.dashboard.normal}`
+                  : wallet.account && !wallet.isPolygon ? t.wallet.wrongNetwork : t.sections.transparencyItems[0]}
+              </p>
             </div>
-          )}
+            <Link className="outline-button" href="#how">{t.nav.how}</Link>
+          </div>
           {readError && <p className="inline-error">{t.errors[readError.key]}</p>}
         </article>
 
         <aside className="panel wallet-card">
           <div className="panel-title">
-            <Ticket size={18} />
+            <Wallet size={18} />
             <div>
-              <h2>{t.purchase.title}</h2>
-              <p>{t.purchase.oneTicket}</p>
+              <h2>{wallet.account ? t.wallet.connected : t.wallet.connect}</h2>
+              <p>{wallet.account ? shortenAddress(wallet.account) : t.purchase.connectFirst}</p>
             </div>
+            <span className={`green-dot ${wallet.account ? "is-connected" : ""}`} />
           </div>
 
           <button type="button" className="outline-button wide" onClick={openWallet}>
@@ -456,6 +447,7 @@ export default function SerenApp() {
           )}
 
           <div className="wallet-copy">
+            <span>{t.purchase.title}</span>
             <strong>{ticketPrice ? formatPol(ticketPrice) : t.misc.unavailableDash}</strong>
             <p>{t.purchase.gas}</p>
           </div>
@@ -542,15 +534,21 @@ export default function SerenApp() {
       </section>
 
       <section id="how" className="benefits panel">
-        <div>
+        <div className="benefit-card">
           <span className="large-icon"><Shield /></span>
-          <strong>{t.sections.howTitle}</strong>
-          {t.sections.howSteps.map((step) => <p key={step}>{step}</p>)}
+          <div><strong>{t.sections.transparencyTitle}</strong><p>{t.sections.transparencyItems[1]}</p></div>
         </div>
-        <div>
+        <div className="benefit-card">
           <span className="large-icon"><Lock /></span>
-          <strong>{t.sections.transparencyTitle}</strong>
-          {t.sections.transparencyItems.map((item) => <p key={item}>{item}</p>)}
+          <div><strong>{t.footer.contract}</strong><p>{t.sections.transparencyItems[3]}</p></div>
+        </div>
+        <div className="benefit-card">
+          <span className="large-icon"><Zap /></span>
+          <div><strong>Polygon Mainnet</strong><p>{t.sections.howSteps[0]}</p></div>
+        </div>
+        <div className="benefit-card">
+          <span className="large-icon"><Gift /></span>
+          <div><strong>{t.purchase.title}</strong><p>{t.purchase.oneTicket} {t.purchase.gas}</p></div>
         </div>
       </section>
 
