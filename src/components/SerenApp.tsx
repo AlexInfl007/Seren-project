@@ -75,6 +75,19 @@ const marketingCopy: Record<Language, string> = {
   pt: "Loterias tradicionais podem parecer opacas; aqui, regras e resultados são verificáveis on-chain. A entrada custa como o troco de um café e dá chance a um prêmio maior, mas todo bilhete pode perder.",
 };
 
+const roundGoalLabel: Record<Language, string> = {
+  en: "Current round goal",
+  ru: "Цель текущего раунда",
+  es: "Meta de la ronda actual",
+  "zh-CN": "本轮目标",
+  hi: "मौजूदा राउंड का लक्ष्य",
+  ar: "هدف الجولة الحالية",
+  fr: "Objectif du round actuel",
+  pt: "Meta da rodada atual",
+};
+
+const ROUND_POOL_GOAL = 1_000_000n * 10n ** 18n;
+
 function Brand({ footer = false }: { footer?: boolean }) {
   return (
     <Link href="#home" className={`brand-logo ${footer ? "footer-brand" : ""}`} aria-label="Seren Lottery Chain">
@@ -360,8 +373,8 @@ export default function SerenApp() {
   const buyLabel = ticketPrice
     ? t.purchase.buyWithPrice.replace("{price}", formatPol(ticketPrice))
     : t.purchase.buy;
-  const poolProgress = lotteryState?.maxTicketsPerRound && lotteryState.maxTicketsPerRound > 0n
-    ? Math.min(100, Number((lotteryState.ticketsCount * 10000n) / lotteryState.maxTicketsPerRound) / 100)
+  const poolProgress = lotteryState?.prizePool
+    ? Math.min(100, Number((lotteryState.prizePool * 10000n) / ROUND_POOL_GOAL) / 100)
     : 0;
 
   return (
@@ -510,8 +523,11 @@ export default function SerenApp() {
               <span style={{ width: `${locked ? 0 : poolProgress}%` }} />
             </div>
             <div className="pool-progress-scale">
-              <span>{locked ? "—" : formatCount(lotteryState?.ticketsCount)}</span>
-              <span>{t.dashboard.poolTarget}: {locked ? "—" : formatCount(lotteryState?.maxTicketsPerRound)}</span>
+              <span>{locked ? "—" : formatPol(lotteryState?.prizePool)}</span>
+              <span className="round-goal">
+                <span>{roundGoalLabel[language]}</span>
+                <strong>1 000 000 <em>POL</em></strong>
+              </span>
             </div>
           </div>
 
