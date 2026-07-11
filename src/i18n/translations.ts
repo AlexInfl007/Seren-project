@@ -49,6 +49,8 @@ type DashboardKey =
   | "normal"
   | "maxPerRound"
   | "maxPerAddress"
+  | "poolProgress"
+  | "poolTarget"
   | "contractReadable";
 type PurchaseKey =
   | "title"
@@ -135,6 +137,12 @@ export type Translation = {
     risk: string;
     faqTitle: string;
     faq: [string, string][];
+    projectTitle: string;
+    projectBody: string[];
+    playTitle: string;
+    playSteps: { title: string; body: string }[];
+    projectMore: string;
+    projectMoreBody: string;
   };
   lucky: {
     title: string;
@@ -206,6 +214,8 @@ const en: Translation = {
     normal: "Normal",
     maxPerRound: "Max per round",
     maxPerAddress: "Max per address",
+    poolProgress: "Prize pool progress",
+    poolTarget: "Round capacity",
     contractReadable: "Contract state readable",
   },
   purchase: {
@@ -291,6 +301,19 @@ const en: Translation = {
       ["What does one ticket cost?", "The live contract ticket price controls the displayed price and transaction value."],
       ["Is the lucky message part of the lottery?", "No. It is entertainment only and does not predict lottery results."],
     ],
+    projectTitle: "A transparent lottery built on Polygon",
+    projectBody: [
+      "Seren Lottery Chain is a transparent crypto lottery on Polygon, powered by its own smart contract. Connect a wallet, add POL to the shared pool, follow the jackpot, inspect the contract and verify that winner selection uses Chainlink VRF.",
+      "The goal is a fair chance to win in a game where everyone has equal rights. Losing funds is part of the risk, but that risk is what makes a victory truly valuable.",
+    ],
+    playTitle: "How to play",
+    playSteps: [
+      { title: "Connect a wallet and buy a ticket for 30 POL", body: "Your 30 POL immediately enters the shared pool and you automatically participate in the draw for 90% of the pool." },
+      { title: "Wait for your stellar moment", body: "The pool grows with every participant, increasing your potential prize. The draw begins when the pool is filled." },
+      { title: "Victory!", body: "The smart contract uses Chainlink VRF to select a random winner. The prize is sent automatically to the wallet and the result cannot be altered." },
+    ],
+    projectMore: "More about the project",
+    projectMoreBody: "Open the full description, transparency model and technical architecture.",
   },
   lucky: {
     title: "Lucky message",
@@ -342,11 +365,11 @@ const dictionaries: Record<Exclude<Language, "en">, Partial<Translation>> = {
       connect: "Подключить кошелек", connecting: "Подключение", connected: "Кошелек подключен", switch: "Переключить на Polygon", disconnect: "Сбросить сессию", copied: "Адрес скопирован", copy: "Скопировать адрес", unavailable: "Web3-кошелек не найден. Откройте страницу в кошельке или установите расширение.", wrongNetwork: "Переключитесь на Polygon Mainnet, чтобы увидеть данные контракта.", selectProvider: "Выберите кошелек", browserWallet: "Браузерный кошелек", walletConnect: "WalletConnect", walletConnectUnavailable: "WalletConnect не настроен для этого приложения.", menu: "Открыть меню", close: "Закрыть меню",
     },
     hero: { eyebrow: "ОНЧЕЙН-ЛОТЕРЕЯ · POLYGON", heading: "Seren Lottery Chain", body: "Ончейн-лотерея на Polygon. Данные контракта показываются только после подключения кошелька.", contract: "Открыть контракт", lucky: "Счастливое сообщение" },
-    dashboard: { title: "Текущий розыгрыш", subtitleConnected: "Реальные значения загружены через провайдер вашего кошелька.", subtitleLocked: "Подключите кошелек, чтобы увидеть данные лотереи.", refresh: "Обновить данные", refreshing: "Обновление", locked: "Подключите кошелек", prizePool: "Призовой пул", currentRound: "Текущий раунд", ticketsInDraw: "Всего билетов", yourTickets: "Ваши билеты", ticketPrice: "Цена билета", drawStatus: "Статус розыгрыша", open: "Открыт", closed: "Закрыт", emergency: "Пауза", normal: "Норма", maxPerRound: "Макс. за раунд", maxPerAddress: "Макс. на адрес", contractReadable: "Состояние контракта доступно" },
+    dashboard: { title: "Текущий розыгрыш", subtitleConnected: "Реальные значения загружены через провайдер вашего кошелька.", subtitleLocked: "Подключите кошелек, чтобы увидеть данные лотереи.", refresh: "Обновить данные", refreshing: "Обновление", locked: "Подключите кошелек", prizePool: "Призовой пул", currentRound: "Текущий раунд", ticketsInDraw: "Всего билетов", yourTickets: "Ваши билеты", ticketPrice: "Цена билета", drawStatus: "Статус розыгрыша", open: "Открыт", closed: "Закрыт", emergency: "Пауза", normal: "Норма", maxPerRound: "Макс. за раунд", maxPerAddress: "Макс. на адрес", poolProgress: "Заполнение призового пула", poolTarget: "Вместимость раунда", contractReadable: "Состояние контракта доступно" },
     purchase: { title: "Купить один билет", oneTicket: "За одну транзакцию покупается ровно один билет.", gas: "Комиссия сети оплачивается отдельно.", userTickets: "Ваши билеты", buy: "Купить 1 билет", buyWithPrice: "Купить 1 билет — {price}", connectFirst: "Подключите кошелек, чтобы купить билет.", wrongNetwork: "Перед покупкой переключитесь на Polygon Mainnet.", readFirst: "Загрузите данные контракта перед покупкой.", unavailableConfig: "Покупка временно недоступна: конфигурацию контракта нужно проверить.", closed: "Участие недоступно, пока розыгрыш закрыт.", emergency: "Участие временно недоступно.", priceMismatch: "Методы цены билета расходятся. Покупка отключена до проверки.", insufficientFunds: "В кошельке должно быть достаточно POL для билета и газа.", simulationFailed: "Проверка транзакции не прошла, покупка отключена.", ready: "Проверка транзакции прошла.", confirmTitle: "Подтвердите покупку билета", confirmBody: "Кошелек попросит подтвердить транзакцию buyTicket().", contract: "Контракт", price: "Цена билета", risk: "Участие связано с риском. Вы можете потерять POL, использованные для покупки билета.", cancel: "Отмена", continue: "Перейти к кошельку", simulating: "Проверка транзакции", awaitingWallet: "Ожидание кошелька", pending: "Ожидание подтверждения Polygon", success: "Покупка билета подтверждена.", failed: "Транзакцию не удалось завершить.", viewTx: "Открыть транзакцию" },
     activity: { title: "Недавние покупки", subtitle: "События TicketBought загружены через провайдер кошелька.", locked: "Подключите кошелек, чтобы загрузить проверяемую активность.", unavailable: "История активности недоступна через этот провайдер кошелька. Контракт можно проверить на PolygonScan.", empty: "Записанных покупок билетов не найдено.", buyer: "Покупатель", round: "Раунд", price: "Цена", winner: "Победитель", prize: "Приз", tx: "Транзакция", time: "Время" },
     winners: { title: "Прошлые победители", subtitle: "События WinnerPicked загружены через провайдер кошелька.", locked: "Подключите кошелек, чтобы загрузить завершенные розыгрыши.", unavailable: "История активности недоступна через этот провайдер кошелька. Контракт можно проверить на PolygonScan.", empty: "Завершенных розыгрышей пока нет.", buyer: "Покупатель", round: "Раунд", price: "Цена", winner: "Победитель", prize: "Приз", tx: "Транзакция", time: "Время" },
-    sections: { howTitle: "Как это работает", howSteps: ["Подключите кошелек в Polygon Mainnet.", "Прочитайте состояние контракта через этот кошелек.", "Купите ровно один билет через buyTicket(), если проверка транзакции прошла.", "Проверяйте активность и события победителей в блокчейне."], transparencyTitle: "Прозрачность", transparencyItems: ["До подключения кошелька данные лотереи не показываются.", "Призовой пул, раунд, билеты, статус и цена берутся из контракта.", "События победителей публично проверяемы после их эмиссии контрактом.", "Активность можно проверить на PolygonScan."], riskTitle: "Уведомление о риске", risk: "Участие в лотерее связано с риском. Вы можете потерять POL, использованные для покупки билета. Участвуйте только там, где это разрешено законом. Этот сайт не предоставляет финансовые или юридические советы.", faqTitle: "FAQ", faq: [["Что такое Seren Lottery Chain?", "Ончейн-лотерея на Polygon."], ["Почему данные скрыты до подключения?", "Сайт использует только провайдер подключенного кошелька."], ["Сколько стоит билет?", "Цена и сумма транзакции берутся из контракта."], ["Счастливое сообщение связано с лотереей?", "Нет. Это только развлечение и не предсказывает результаты."]] },
+    sections: { howTitle: "Как это работает", howSteps: ["Подключите кошелек в Polygon Mainnet.", "Прочитайте состояние контракта через этот кошелек.", "Купите ровно один билет через buyTicket(), если проверка транзакции прошла.", "Проверяйте активность и события победителей в блокчейне."], transparencyTitle: "Прозрачность", transparencyItems: ["До подключения кошелька данные лотереи не показываются.", "Призовой пул, раунд, билеты, статус и цена берутся из контракта.", "События победителей публично проверяемы после их эмиссии контрактом.", "Активность можно проверить на PolygonScan."], riskTitle: "Уведомление о риске", risk: "Участие в лотерее связано с риском. Вы можете потерять POL, использованные для покупки билета. Участвуйте только там, где это разрешено законом. Этот сайт не предоставляет финансовые или юридические советы.", faqTitle: "FAQ", faq: [["Что такое Seren Lottery Chain?", "Ончейн-лотерея на Polygon."], ["Почему данные скрыты до подключения?", "Сайт использует только провайдер подключенного кошелька."], ["Сколько стоит билет?", "Цена и сумма транзакции берутся из контракта."], ["Счастливое сообщение связано с лотереей?", "Нет. Это только развлечение и не предсказывает результаты."]], projectTitle: "Прозрачная крипто-лотерея в сети Polygon", projectBody: ["Seren Lottery Chain — это прозрачная крипто-лотерея в сети Polygon, которая работает на собственном смарт-контракте, где пользователь может подключить кошелек, внести монеты в общий пул, следить за джекпотом, изучить смарт-контракт и убедиться, что выбор победителя работает через Chainlink VRF.", "Главная цель — честный шанс выиграть в игре, где все права равны. Риск потери средств — часть игры, но именно он делает победу по-настоящему ценной."], playTitle: "Как играть в лотерею", playSteps: [{ title: "Подключи кошелек и купи билет за 30 POL", body: "Твои 30 POL мгновенно пополняют общий пул, и ты автоматически участвуешь в розыгрыше 90% пула." }, { title: "Жди своего звездного часа", body: "Пул растет с каждым новым участником, увеличивая твой потенциальный выигрыш. Розыгрыш состоится, когда пул собран." }, { title: "Победа!", body: "Смарт-контракт с помощью Chainlink VRF выбирает случайного победителя. Выигрыш автоматически отправляется на кошелек. Результат нельзя подделать." }], projectMore: "Подробнее о проекте", projectMoreBody: "Откройте полное описание, прозрачность и техническую архитектуру." },
     lucky: { title: "Счастливое сообщение", label: "Только для развлечения. Это не предсказывает результаты лотереи.", close: "Закрыть", predictions: { "quiet-door": "Тихое решение может открыть неожиданную дверь.", "patient-luck": "Терпение тоже может быть удачей.", "look-twice": "Посмотрите дважды, прежде чем выбрать очевидный путь.", "new-connection": "Новая связь может дать новый импульс.", "small-steps": "Маленькие шаги ведут к заметным итогам.", "trust-process": "Доверяйте процессу, а не обещанию.", "curious-chapter": "Новая глава может начаться с любопытства.", "careful-attention": "Сегодня внимательность вознаграждается." } },
     footer: { tagline: "Ончейн-лотерея на Polygon", links: "Ссылки", information: "Информация", contract: "Смарт-контракт", polygon: "PolygonScan", rights: "© 2026 Seren Lottery Chain" },
     misc: { copied: "Скопировано", unavailableDash: "—", explorer: "PolygonScan", address: "Адрес" },

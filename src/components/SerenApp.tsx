@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  ArrowUp,
   Copy,
   ExternalLink,
   Gift,
@@ -55,8 +56,8 @@ type SimulationState =
 function Brand({ footer = false }: { footer?: boolean }) {
   return (
     <Link href="#home" className={`brand-logo ${footer ? "footer-brand" : ""}`} aria-label="Seren Lottery Chain">
-      <span>Seren</span>
-      <span className="brand-lottery"><i aria-hidden="true">◊</i>Lottery</span>
+      <Image className="brand-mark" src="/assets/logo.png" alt="" width={54} height={54} />
+      <span className="brand-wordmark"><span>Seren</span><span>Lottery</span></span>
     </Link>
   );
 }
@@ -103,6 +104,8 @@ export default function SerenApp() {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [predictionOpen, setPredictionOpen] = useState(false);
   const [predictionText, setPredictionText] = useState("");
+  const [predictionUsed, setPredictionUsed] = useState(false);
+  const [isScrolled, setIsScrolled] = useState(false);
 
   const dataAllowed = canLoadContractData({
     hasExplicitConnection: wallet.explicitConnection,
@@ -120,6 +123,29 @@ export default function SerenApp() {
       ] as const,
     [t],
   );
+
+  useEffect(() => {
+    setPredictionUsed(window.sessionStorage.getItem("seren.prediction.revealed") === "1");
+
+    let frame = 0;
+    const updateScroll = () => {
+      frame = 0;
+      const y = window.scrollY;
+      const progress = Math.min(y / Math.max(window.innerHeight, 1), 1);
+      document.documentElement.style.setProperty("--scroll-progress", progress.toFixed(3));
+      document.documentElement.style.setProperty("--scroll-y", `${y}px`);
+      setIsScrolled(y > 120);
+    };
+    const onScroll = () => {
+      if (!frame) frame = window.requestAnimationFrame(updateScroll);
+    };
+    updateScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      if (frame) window.cancelAnimationFrame(frame);
+    };
+  }, []);
 
   const refreshData = useCallback(
     async (forceHistory = false) => {
@@ -243,9 +269,21 @@ export default function SerenApp() {
 
   const openWallet = () => setWalletOpen((open) => !open);
 
+  const connectWallet = () => {
+    if (wallet.account) {
+      openWallet();
+      return;
+    }
+    setWalletOpen(true);
+    void wallet.connectPreferred();
+  };
+
   const revealPrediction = () => {
+    if (predictionUsed) return;
     const id = getSessionPrediction();
     setPredictionText(t.lucky.predictions[id]);
+    window.sessionStorage.setItem("seren.prediction.revealed", "1");
+    setPredictionUsed(true);
     setPredictionOpen(true);
   };
 
@@ -288,10 +326,16 @@ export default function SerenApp() {
   const buyLabel = ticketPrice
     ? t.purchase.buyWithPrice.replace("{price}", formatPol(ticketPrice))
     : t.purchase.buy;
+  const poolProgress = lotteryState?.maxTicketsPerRound && lotteryState.maxTicketsPerRound > 0n
+    ? Math.min(100, Number((lotteryState.ticketsCount * 10000n) / lotteryState.maxTicketsPerRound) / 100)
+    : 0;
 
   return (
     <main id="home" className="seren-page">
-      <header className="site-header">
+      <div className="coin-field" aria-hidden="true">
+        {Array.from({ length: 7 }, (_, index) => <span className={`pol-coin coin-${index + 1}`} key={index}>POL</span>)}
+      </div>
+      <header className={`site-header ${isScrolled ? "is-compact" : ""}`}>
         <Brand />
 
         <nav className="desktop-nav" aria-label="Primary navigation">
@@ -300,9 +344,6 @@ export default function SerenApp() {
               {label}
             </Link>
           ))}
-          <button type="button" onClick={revealPrediction}>
-            {t.hero.lucky}
-          </button>
         </nav>
 
         <div className="header-actions">
@@ -318,7 +359,7 @@ export default function SerenApp() {
               </option>
             ))}
           </select>
-          <button type="button" className="outline-button wallet-button" onClick={openWallet}>
+          <button type="button" className="outline-button wallet-button" onClick={connectWallet}>
             {wallet.account ? shortenAddress(wallet.account) : wallet.connecting ? t.wallet.connecting : t.wallet.connect}
           </button>
           <button
@@ -371,6 +412,15 @@ export default function SerenApp() {
         )}
       </header>
 
+      <div className={`scroll-tools ${isScrolled ? "is-visible" : ""}`}>
+        <button type="button" className="scroll-tool" onClick={() => setMobileOpen((open) => !open)} aria-label={mobileOpen ? t.wallet.close : t.wallet.menu}>
+          {mobileOpen ? <X /> : <Menu />}
+        </button>
+        <button type="button" className="scroll-tool" onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })} aria-label={t.nav.home}>
+          <ArrowUp />
+        </button>
+      </div>
+
       {mobileOpen && (
         <nav className="mobile-nav" aria-label="Mobile navigation">
           {navLinks.map(([label, href]) => (
@@ -378,9 +428,6 @@ export default function SerenApp() {
               {label}
             </Link>
           ))}
-          <button type="button" onClick={revealPrediction}>
-            {t.hero.lucky}
-          </button>
         </nav>
       )}
 
@@ -411,6 +458,20 @@ export default function SerenApp() {
             <Stat label={t.dashboard.ticketPrice} value={formatPol(lotteryState?.ticketPrice)} locked={locked} />
           </div>
 
+          <div className={`pool-progress ${locked ? "is-locked" : ""}`}>
+            <div className="pool-progress-label">
+              <span>{t.dashboard.poolProgress}</span>
+              <strong>{locked ? "—" : `${poolProgress.toLocaleString(undefined, { maximumFractionDigits: 2 })}%`}</strong>
+            </div>
+            <div className="pool-progress-track" role="progressbar" aria-label={t.dashboard.poolProgress} aria-valuemin={0} aria-valuemax={100} aria-valuenow={locked ? 0 : poolProgress}>
+              <span style={{ width: `${locked ? 0 : poolProgress}%` }} />
+            </div>
+            <div className="pool-progress-scale">
+              <span>{locked ? "—" : formatCount(lotteryState?.ticketsCount)}</span>
+              <span>{t.dashboard.poolTarget}: {locked ? "—" : formatCount(lotteryState?.maxTicketsPerRound)}</span>
+            </div>
+          </div>
+
           <div className="verified-state-band">
             <span className="round-icon">{dataAllowed ? <Shield /> : <Lock />}</span>
             <div>
@@ -436,7 +497,7 @@ export default function SerenApp() {
             <span className={`green-dot ${wallet.account ? "is-connected" : ""}`} />
           </div>
 
-          <button type="button" className="outline-button wide" onClick={openWallet}>
+          <button type="button" className="outline-button wide" onClick={connectWallet}>
             {wallet.account ? shortenAddress(wallet.account) : t.wallet.connect}
           </button>
 
@@ -454,6 +515,10 @@ export default function SerenApp() {
 
           <button type="button" className="buy-button wide" disabled={purchaseDisabled} onClick={() => setConfirmOpen(true)}>
             {buyLabel}
+          </button>
+
+          <button type="button" className="lucky-button wide" onClick={revealPrediction} disabled={predictionUsed}>
+            <Sparkles size={17} /> {predictionUsed ? t.lucky.label : t.hero.lucky}
           </button>
 
           <p className="my-tickets">{t.purchase.userTickets}: {formatCount(lotteryState?.userTickets)}</p>
@@ -552,9 +617,35 @@ export default function SerenApp() {
         </div>
       </section>
 
+      <section className="project-story panel">
+        <div className="section-kicker">SEREN LOTTERY CHAIN</div>
+        <h2>{t.sections.projectTitle}</h2>
+        {t.sections.projectBody.map((paragraph) => <p key={paragraph}>{paragraph}</p>)}
+      </section>
+
       <section className="risk-strip panel">
         <strong>{t.sections.riskTitle}</strong>
         <p>{t.sections.risk}</p>
+      </section>
+
+      <section className="play-guide">
+        <div className="play-guide-heading">
+          <span className="section-kicker">01 — 03</span>
+          <h2>{t.sections.playTitle}</h2>
+        </div>
+        <div className="play-steps">
+          {t.sections.playSteps.map((step, index) => (
+            <article className="play-step panel" key={step.title}>
+              <span className="step-number">0{index + 1}</span>
+              <h3>{step.title}</h3>
+              <p>{step.body}</p>
+            </article>
+          ))}
+        </div>
+        <Link className="project-more panel" href="/project">
+          <span><strong>{t.sections.projectMore}</strong><small>{t.sections.projectMoreBody}</small></span>
+          <ExternalLink />
+        </Link>
       </section>
 
       <section id="faq" className="faq-strip">

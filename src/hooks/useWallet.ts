@@ -50,6 +50,10 @@ function discoverInjectedProviders() {
   }));
 }
 
+function isMobileDevice() {
+  return typeof navigator !== "undefined" && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+}
+
 export function useWallet() {
   const [state, setState] = useState<WalletState>({
     providers: [],
@@ -192,6 +196,41 @@ export function useWallet() {
     }
   }, []);
 
+  const openMetaMaskMobile = useCallback(() => {
+    if (typeof window === "undefined") return;
+    const dappUrl = `${window.location.host}${window.location.pathname}${window.location.search}`;
+    window.location.assign(`https://metamask.app.link/dapp/${dappUrl}`);
+  }, []);
+
+  const connectPreferred = useCallback(async () => {
+    const available = uniqueProviders([...state.providers, ...discoverInjectedProviders()]);
+    const metaMask = available.find(
+      (item) => item.id === "metamask" || item.rdns?.toLowerCase().includes("metamask"),
+    );
+
+    if (metaMask) {
+      await connectWithProvider(metaMask);
+      return;
+    }
+
+    if (isMobileDevice()) {
+      openMetaMaskMobile();
+      return;
+    }
+
+    if (available[0]) {
+      await connectWithProvider(available[0]);
+      return;
+    }
+
+    if (process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID) {
+      await connectWalletConnect();
+      return;
+    }
+
+    setState((current) => ({ ...current, error: { key: "walletUnavailable" } }));
+  }, [connectWalletConnect, connectWithProvider, openMetaMaskMobile, state.providers]);
+
   const switchToPolygon = useCallback(async () => {
     if (!state.provider) return;
     try {
@@ -240,6 +279,8 @@ export function useWallet() {
     isPolygon: state.chainId === POLYGON_CHAIN_ID,
     connectWithProvider,
     connectWalletConnect,
+    connectPreferred,
+    openMetaMaskMobile,
     switchToPolygon,
     copyAddress,
     disconnect,
