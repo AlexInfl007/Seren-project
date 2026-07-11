@@ -53,6 +53,28 @@ type SimulationState =
   | { status: "failed"; error: AppError }
   | { status: "insufficientFunds" };
 
+const additionalFaq: Record<Language, [string, string][]> = {
+  en: [["Why is this lottery more transparent than a traditional one?", "The round state, purchases and winner events are recorded by the Polygon smart contract and can be checked independently."], ["Can I still lose my entry?", "Yes. A ticket is a chance, not a promise of profit. Only participate with POL you can afford to lose; the low entry price does not remove risk."]],
+  ru: [["Почему эта лотерея прозрачнее обычной?", "Состояние раунда, покупки и события выбора победителя записываются смарт-контрактом Polygon и доступны для независимой проверки."], ["Можно ли потерять стоимость участия?", "Да. Билет даёт шанс, а не обещание дохода. Участвуйте только на POL, которые готовы потерять: низкая цена входа не отменяет риск."]],
+  es: [["¿Por qué es más transparente que una lotería tradicional?", "El estado, las compras y los ganadores quedan registrados en el contrato de Polygon y pueden verificarse."], ["¿Puedo perder el coste de entrada?", "Sí. El boleto es una oportunidad, no una promesa de beneficio. Participa solo con POL que puedas perder."]],
+  "zh-CN": [["为什么它比传统彩票更透明？", "轮次状态、购票和赢家事件由 Polygon 智能合约记录，可独立核验。"], ["我会损失参与费用吗？", "会。彩票只提供机会，不承诺收益。即使门槛较低，也请只使用能够承受损失的 POL。"]],
+  hi: [["यह पारंपरिक लॉटरी से अधिक पारदर्शी क्यों है?", "राउंड, खरीद और विजेता events Polygon smart contract में दर्ज होते हैं और स्वतंत्र रूप से जाँचे जा सकते हैं।"], ["क्या entry की रकम खो सकती है?", "हाँ। टिकट एक मौका है, लाभ का वादा नहीं। केवल उतना POL लगाएँ जिसे आप खो सकते हैं।"]],
+  ar: [["لماذا هي أكثر شفافية من اليانصيب التقليدي؟", "تُسجَّل حالة الجولة والمشتريات وأحداث الفائز في عقد Polygon ويمكن التحقق منها بشكل مستقل."], ["هل يمكن أن أخسر تكلفة المشاركة؟", "نعم. التذكرة فرصة وليست وعداً بالربح. شارك فقط بمبلغ POL يمكنك تحمل خسارته."]],
+  fr: [["Pourquoi cette loterie est-elle plus transparente ?", "L'état du round, les achats et les événements gagnants sont inscrits dans le contrat Polygon et vérifiables."], ["Puis-je perdre le prix du ticket ?", "Oui. Un ticket est une chance, pas une promesse de gain. Ne jouez que le POL que vous pouvez perdre."]],
+  pt: [["Por que é mais transparente que uma loteria tradicional?", "Rodada, compras e eventos de vencedores ficam registrados no contrato Polygon e podem ser verificados."], ["Posso perder o valor da entrada?", "Sim. O bilhete é uma chance, não promessa de lucro. Participe apenas com POL que possa perder."]],
+};
+
+const marketingCopy: Record<Language, string> = {
+  en: "Traditional lotteries can feel opaque: participants must trust an organizer. Here the rules and results are verifiable on-chain. The entry costs about small everyday change, creating a chance at a much larger prize—but every ticket can still be lost.",
+  ru: "Обычные лотереи часто кажутся непрозрачными: участнику приходится доверять организатору. Здесь правила и результаты можно проверить в блокчейне. Стоимость участия сравнима со сдачей от кофе и даёт шанс на крупный выигрыш — но каждый билет всё равно может оказаться проигрышным.",
+  es: "Las loterías tradicionales pueden ser opacas; aquí las reglas y resultados se verifican on-chain. Una entrada cuesta como el cambio de un café y da acceso a un premio mayor, pero cada boleto puede perderse.",
+  "zh-CN": "传统彩票可能不透明；这里的规则和结果可在链上核验。参与成本约等于一杯咖啡的零钱，却有机会赢得更大奖励，但每张票仍可能落空。",
+  hi: "पारंपरिक lotteries अस्पष्ट हो सकती हैं; यहाँ rules और results on-chain जाँचे जा सकते हैं। Entry coffee के बचे हुए पैसों जितनी कम हो सकती है, फिर भी हर ticket हार सकता है।",
+  ar: "قد تكون اليانصيبات التقليدية غير شفافة؛ هنا يمكن التحقق من القواعد والنتائج على السلسلة. تكلفة المشاركة منخفضة كفكة قهوة وتمنح فرصة لجائزة أكبر، لكن كل تذكرة قد تخسر.",
+  fr: "Les loteries classiques peuvent sembler opaques ; ici, règles et résultats sont vérifiables on-chain. La mise ressemble à la monnaie d'un café et ouvre une chance de gros lot, mais chaque ticket peut être perdu.",
+  pt: "Loterias tradicionais podem parecer opacas; aqui, regras e resultados são verificáveis on-chain. A entrada custa como o troco de um café e dá chance a um prêmio maior, mas todo bilhete pode perder.",
+};
+
 function Brand({ footer = false }: { footer?: boolean }) {
   return (
     <Link href="#home" className={`brand-logo ${footer ? "footer-brand" : ""}`} aria-label="Seren Lottery Chain">
@@ -146,6 +168,18 @@ export default function SerenApp() {
       if (frame) window.cancelAnimationFrame(frame);
     };
   }, []);
+
+  useEffect(() => {
+    if (!mobileOpen) return;
+    const closeMenu = () => setMobileOpen(false);
+    const closeOnEscape = (event: KeyboardEvent) => event.key === "Escape" && closeMenu();
+    window.addEventListener("pointerdown", closeMenu);
+    window.addEventListener("keydown", closeOnEscape);
+    return () => {
+      window.removeEventListener("pointerdown", closeMenu);
+      window.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [mobileOpen]);
 
   const refreshData = useCallback(
     async (forceHistory = false) => {
@@ -365,6 +399,7 @@ export default function SerenApp() {
           <button
             type="button"
             className="icon-button menu-button"
+            onPointerDown={(event) => event.stopPropagation()}
             onClick={() => setMobileOpen((open) => !open)}
             aria-label={mobileOpen ? t.wallet.close : t.wallet.menu}
           >
@@ -413,7 +448,7 @@ export default function SerenApp() {
       </header>
 
       <div className={`scroll-tools ${isScrolled ? "is-visible" : ""}`}>
-        <button type="button" className="scroll-tool" onClick={() => setMobileOpen((open) => !open)} aria-label={mobileOpen ? t.wallet.close : t.wallet.menu}>
+        <button type="button" className="scroll-tool" onPointerDown={(event) => event.stopPropagation()} onClick={() => setMobileOpen((open) => !open)} aria-label={mobileOpen ? t.wallet.close : t.wallet.menu}>
           {mobileOpen ? <X /> : <Menu />}
         </button>
         <button type="button" className="scroll-tool" onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })} aria-label={t.nav.home}>
@@ -422,13 +457,21 @@ export default function SerenApp() {
       </div>
 
       {mobileOpen && (
-        <nav className="mobile-nav" aria-label="Mobile navigation">
+        <div className="menu-backdrop">
+        <nav className={`mobile-nav ${isScrolled ? "is-floating" : ""}`} aria-label="Mobile navigation" onPointerDown={(event) => event.stopPropagation()}>
           {navLinks.map(([label, href]) => (
             <Link href={href} key={href} onClick={() => setMobileOpen(false)}>
               {label}
             </Link>
           ))}
+          <label className="mobile-language">
+            <span>{t.misc.language}</span>
+            <select value={language} onChange={(event) => setLanguage(event.target.value as Language)} aria-label={t.misc.language}>
+              {languages.map((item) => <option value={item} key={item}>{languageLabels[item]}</option>)}
+            </select>
+          </label>
         </nav>
+        </div>
       )}
 
       <section className="hero-banner" aria-label="Seren Lottery Chain">
@@ -542,7 +585,7 @@ export default function SerenApp() {
             <Link href={CONTRACT_LINK} target="_blank">{t.misc.explorer}</Link>
           </div>
           <p className="table-subtitle">{t.activity.subtitle}</p>
-          <div className="purchase-list">
+          <div className="purchase-list history-scroll">
             <div className="table-head">
               <span>{t.activity.buyer}</span>
               <span>{t.activity.round}</span>
@@ -574,7 +617,7 @@ export default function SerenApp() {
             <Link href={CONTRACT_LINK} target="_blank">{t.misc.explorer}</Link>
           </div>
           <p className="table-subtitle">{t.winners.subtitle}</p>
-          <div className="winner-list">
+          <div className="winner-list history-scroll">
             <div className="table-head">
               <span>{t.winners.round}</span>
               <span>{t.winners.winner}</span>
@@ -621,6 +664,7 @@ export default function SerenApp() {
         <div className="section-kicker">SEREN LOTTERY CHAIN</div>
         <h2>{t.sections.projectTitle}</h2>
         {t.sections.projectBody.map((paragraph) => <p key={paragraph}>{paragraph}</p>)}
+        <p>{marketingCopy[language]}</p>
       </section>
 
       <section className="risk-strip panel">
@@ -630,7 +674,6 @@ export default function SerenApp() {
 
       <section className="play-guide">
         <div className="play-guide-heading">
-          <span className="section-kicker">01 — 03</span>
           <h2>{t.sections.playTitle}</h2>
         </div>
         <div className="play-steps">
@@ -649,7 +692,7 @@ export default function SerenApp() {
       </section>
 
       <section id="faq" className="faq-strip">
-        {t.sections.faq.map(([question, answer]) => (
+        {[...t.sections.faq, ...additionalFaq[language]].map(([question, answer]) => (
           <details key={question}>
             <summary>{question}</summary>
             <p>{answer}</p>
@@ -680,7 +723,7 @@ export default function SerenApp() {
 
       {confirmOpen && lotteryState && (
         <div className="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
-          <div className="modal">
+          <div className="modal prediction-modal">
             <button type="button" className="icon-button modal-close" onClick={() => setConfirmOpen(false)} aria-label={t.purchase.cancel}>
               <X />
             </button>
@@ -708,7 +751,7 @@ export default function SerenApp() {
             </button>
             <Sparkles size={32} />
             <h2 id="prediction-title">{t.lucky.title}</h2>
-            <p>{predictionText}</p>
+            <p className="prediction-message">{predictionText}</p>
             <small>{t.lucky.label}</small>
           </div>
         </div>

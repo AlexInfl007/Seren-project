@@ -163,6 +163,7 @@ export type Translation = {
     unavailableDash: string;
     explorer: string;
     address: string;
+    language: string;
   };
   errors: Record<ErrorKey, string>;
 };
@@ -338,7 +339,7 @@ const en: Translation = {
     polygon: "PolygonScan",
     rights: "© 2026 Seren Lottery Chain",
   },
-  misc: { copied: "Copied", unavailableDash: "—", explorer: "PolygonScan", address: "Address" },
+  misc: { copied: "Copied", unavailableDash: "—", explorer: "PolygonScan", address: "Address", language: "Language" },
   errors: {
     walletUnavailable: "No wallet provider is available in this browser.",
     userRejected: "The wallet request was rejected.",
@@ -372,7 +373,7 @@ const dictionaries: Record<Exclude<Language, "en">, Partial<Translation>> = {
     sections: { howTitle: "Как это работает", howSteps: ["Подключите кошелек в Polygon Mainnet.", "Прочитайте состояние контракта через этот кошелек.", "Купите ровно один билет через buyTicket(), если проверка транзакции прошла.", "Проверяйте активность и события победителей в блокчейне."], transparencyTitle: "Прозрачность", transparencyItems: ["До подключения кошелька данные лотереи не показываются.", "Призовой пул, раунд, билеты, статус и цена берутся из контракта.", "События победителей публично проверяемы после их эмиссии контрактом.", "Активность можно проверить на PolygonScan."], riskTitle: "Уведомление о риске", risk: "Участие в лотерее связано с риском. Вы можете потерять POL, использованные для покупки билета. Участвуйте только там, где это разрешено законом. Этот сайт не предоставляет финансовые или юридические советы.", faqTitle: "FAQ", faq: [["Что такое Seren Lottery Chain?", "Ончейн-лотерея на Polygon."], ["Почему данные скрыты до подключения?", "Сайт использует только провайдер подключенного кошелька."], ["Сколько стоит билет?", "Цена и сумма транзакции берутся из контракта."], ["Счастливое сообщение связано с лотереей?", "Нет. Это только развлечение и не предсказывает результаты."]], projectTitle: "Прозрачная крипто-лотерея в сети Polygon", projectBody: ["Seren Lottery Chain — это прозрачная крипто-лотерея в сети Polygon, которая работает на собственном смарт-контракте, где пользователь может подключить кошелек, внести монеты в общий пул, следить за джекпотом, изучить смарт-контракт и убедиться, что выбор победителя работает через Chainlink VRF.", "Главная цель — честный шанс выиграть в игре, где все права равны. Риск потери средств — часть игры, но именно он делает победу по-настоящему ценной."], playTitle: "Как играть в лотерею", playSteps: [{ title: "Подключи кошелек и купи билет за 30 POL", body: "Твои 30 POL мгновенно пополняют общий пул, и ты автоматически участвуешь в розыгрыше 90% пула." }, { title: "Жди своего звездного часа", body: "Пул растет с каждым новым участником, увеличивая твой потенциальный выигрыш. Розыгрыш состоится, когда пул собран." }, { title: "Победа!", body: "Смарт-контракт с помощью Chainlink VRF выбирает случайного победителя. Выигрыш автоматически отправляется на кошелек. Результат нельзя подделать." }], projectMore: "Подробнее о проекте", projectMoreBody: "Откройте полное описание, прозрачность и техническую архитектуру." },
     lucky: { title: "Счастливое сообщение", label: "Только для развлечения. Это не предсказывает результаты лотереи.", close: "Закрыть", predictions: { "quiet-door": "Тихое решение может открыть неожиданную дверь.", "patient-luck": "Терпение тоже может быть удачей.", "look-twice": "Посмотрите дважды, прежде чем выбрать очевидный путь.", "new-connection": "Новая связь может дать новый импульс.", "small-steps": "Маленькие шаги ведут к заметным итогам.", "trust-process": "Доверяйте процессу, а не обещанию.", "curious-chapter": "Новая глава может начаться с любопытства.", "careful-attention": "Сегодня внимательность вознаграждается." } },
     footer: { tagline: "Ончейн-лотерея на Polygon", links: "Ссылки", information: "Информация", contract: "Смарт-контракт", polygon: "PolygonScan", rights: "© 2026 Seren Lottery Chain" },
-    misc: { copied: "Скопировано", unavailableDash: "—", explorer: "PolygonScan", address: "Адрес" },
+    misc: { copied: "Скопировано", unavailableDash: "—", explorer: "PolygonScan", address: "Адрес", language: "Язык" },
   },
   es: {
     langName: "Español",
