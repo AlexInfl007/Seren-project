@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createWalletClient, custom, getAddress, type Address, type Hex } from "viem";
 import { polygon } from "viem/chains";
 import {
@@ -55,6 +55,7 @@ function isMobileDevice() {
 }
 
 export function useWallet() {
+  const restoreStarted = useRef(false);
   const [state, setState] = useState<WalletState>({
     providers: [],
     connecting: false,
@@ -95,10 +96,48 @@ export function useWallet() {
   }, [refreshProviders]);
 
   useEffect(() => {
+    if (restoreStarted.current || state.provider || state.providers.length === 0) return;
+    const savedProviderId = window.sessionStorage.getItem("seren.wallet.provider");
+    const shouldRestore = window.sessionStorage.getItem("seren.wallet.connected") === "1";
+    if (!shouldRestore || !savedProviderId) return;
+    const providerInfo = state.providers.find((item) => item.id === savedProviderId);
+    if (!providerInfo) return;
+
+    restoreStarted.current = true;
+    void (async () => {
+      try {
+        const accounts = await providerInfo.provider.request<string[]>({ method: "eth_accounts" });
+        const [account] = accounts;
+        if (!account) {
+          window.sessionStorage.removeItem("seren.wallet.connected");
+          window.sessionStorage.removeItem("seren.wallet.provider");
+          return;
+        }
+        const chainId = await providerInfo.provider.request<string>({ method: "eth_chainId" });
+        setState((current) => ({
+          ...current,
+          provider: providerInfo.provider,
+          account: getAddress(account),
+          chainId: chainHexToNumber(chainId),
+          explicitConnection: true,
+          error: undefined,
+        }));
+      } catch {
+        window.sessionStorage.removeItem("seren.wallet.connected");
+        window.sessionStorage.removeItem("seren.wallet.provider");
+      }
+    })();
+  }, [state.provider, state.providers]);
+
+  useEffect(() => {
     if (!state.provider) return;
 
     const onAccountsChanged = (accounts: unknown) => {
       const [next] = Array.isArray(accounts) ? accounts : [];
+      if (!next) {
+        window.sessionStorage.removeItem("seren.wallet.connected");
+        window.sessionStorage.removeItem("seren.wallet.provider");
+      }
       setState((current) => ({
         ...current,
         account: typeof next === "string" ? getAddress(next) : undefined,
@@ -143,6 +182,8 @@ export function useWallet() {
         explicitConnection: true,
         error: undefined,
       }));
+      window.sessionStorage.setItem("seren.wallet.connected", "1");
+      window.sessionStorage.setItem("seren.wallet.provider", providerInfo?.id || "injected-0");
     } catch (error) {
       setState((current) => ({
         ...current,
@@ -187,6 +228,8 @@ export function useWallet() {
         connecting: false,
         explicitConnection: true,
       }));
+      window.sessionStorage.setItem("seren.wallet.connected", "1");
+      window.sessionStorage.setItem("seren.wallet.provider", "walletconnect");
     } catch (error) {
       setState((current) => ({
         ...current,
@@ -262,6 +305,8 @@ export function useWallet() {
       error: undefined,
     }));
     window.sessionStorage.removeItem("seren.history.v1");
+    window.sessionStorage.removeItem("seren.wallet.connected");
+    window.sessionStorage.removeItem("seren.wallet.provider");
   }, []);
 
   const walletClient = useMemo(() => {

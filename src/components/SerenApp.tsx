@@ -128,6 +128,7 @@ export default function SerenApp() {
   const { language, setLanguage, t } = useLanguage();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [walletOpen, setWalletOpen] = useState(false);
+  const [walletPopoverPosition, setWalletPopoverPosition] = useState({ top: 76, left: 16 });
   const [lotteryState, setLotteryState] = useState<LotteryState>();
   const [activity, setActivity] = useState<ActivityEntry[]>([]);
   const [winners, setWinners] = useState<WinnerEntry[]>([]);
@@ -193,6 +194,18 @@ export default function SerenApp() {
       window.removeEventListener("keydown", closeOnEscape);
     };
   }, [mobileOpen]);
+
+  useEffect(() => {
+    if (!walletOpen) return;
+    const closeWallet = () => setWalletOpen(false);
+    const closeOnEscape = (event: KeyboardEvent) => event.key === "Escape" && closeWallet();
+    window.addEventListener("pointerdown", closeWallet);
+    window.addEventListener("keydown", closeOnEscape);
+    return () => {
+      window.removeEventListener("pointerdown", closeWallet);
+      window.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [walletOpen]);
 
   const refreshData = useCallback(
     async (forceHistory = false) => {
@@ -314,15 +327,14 @@ export default function SerenApp() {
                           ? t.purchase.ready
                           : "";
 
-  const openWallet = () => setWalletOpen((open) => !open);
-
-  const connectWallet = () => {
-    if (wallet.account) {
-      openWallet();
-      return;
-    }
-    setWalletOpen(true);
-    void wallet.connectPreferred();
+  const connectWallet = (event: React.MouseEvent<HTMLButtonElement>) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    const width = Math.min(330, window.innerWidth - 30);
+    setWalletPopoverPosition({
+      top: Math.max(15, Math.min(rect.bottom + 10, window.innerHeight - 420)),
+      left: Math.max(15, Math.min(rect.left, window.innerWidth - width - 15)),
+    });
+    setWalletOpen((open) => !open);
   };
 
   const revealPrediction = () => {
@@ -406,7 +418,7 @@ export default function SerenApp() {
               </option>
             ))}
           </select>
-          <button type="button" className="outline-button wallet-button" onClick={connectWallet}>
+          <button type="button" className="outline-button wallet-button" onPointerDown={(event) => event.stopPropagation()} onClick={connectWallet}>
             {wallet.account ? shortenAddress(wallet.account) : wallet.connecting ? t.wallet.connecting : t.wallet.connect}
           </button>
           <button
@@ -421,7 +433,7 @@ export default function SerenApp() {
         </div>
 
         {walletOpen && (
-          <div className="wallet-popover">
+          <div className="wallet-popover" style={walletPopoverPosition} onPointerDown={(event) => event.stopPropagation()}>
             {wallet.account ? (
               <>
                 <strong>{t.wallet.connected}</strong>
@@ -556,7 +568,7 @@ export default function SerenApp() {
             <span className={`green-dot ${wallet.account ? "is-connected" : ""}`} />
           </div>
 
-          <button type="button" className="outline-button wide" onClick={connectWallet}>
+          <button type="button" className="outline-button wide" onPointerDown={(event) => event.stopPropagation()} onClick={connectWallet}>
             {wallet.account ? shortenAddress(wallet.account) : t.wallet.connect}
           </button>
 
