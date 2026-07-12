@@ -1,6 +1,6 @@
 import { parseEther } from "viem";
 import { describe, expect, it } from "vitest";
-import { ticketLogToActivity, winnerLogToEntry } from "@/lib/contractHistory";
+import { mergeActivityEntries, ticketLogToActivity, winnerLogToEntry } from "@/lib/contractHistory";
 
 const baseLog = {
   transactionHash: "0x123400000000000000000000000000000000000000000000000000000000abcd",
@@ -38,5 +38,14 @@ describe("event view-model conversion", () => {
     expect(row.winner).toBe("0xf90169AD413429af4AE0a3B8962648d4a3289011");
     expect(row.round).toBe(6n);
     expect(row.prize).toBe(parseEther("90"));
+  });
+
+  it("keeps a confirmed purchase when the provider history is delayed", () => {
+    const optimistic = ticketLogToActivity({
+      ...baseLog,
+      args: { buyer: "0xf90169AD413429af4AE0a3B8962648d4a3289011", round: 7n },
+    } as never);
+    expect(mergeActivityEntries([], [optimistic])).toEqual([optimistic]);
+    expect(mergeActivityEntries([optimistic], [optimistic])).toHaveLength(1);
   });
 });

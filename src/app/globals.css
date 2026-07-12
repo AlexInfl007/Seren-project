@@ -301,6 +301,8 @@ summary:focus-visible {
 .pool-progress-label strong { color: var(--purple-bright); font-size: 1rem; }
 .pool-progress-track { height: 13px; overflow: hidden; border: 1px solid rgba(164, 88, 255, .24); border-radius: 999px; background: rgba(36, 37, 81, .72); box-shadow: inset 0 2px 8px rgba(0,0,0,.4); }
 .pool-progress-track span { display: block; height: 100%; min-width: 0; border-radius: inherit; background: linear-gradient(90deg, #7431d4, #ca67ff 70%, #f0bdff); box-shadow: 0 0 22px #9f43ff; transition: width .8s cubic-bezier(.2,.8,.2,1); }
+.pool-progress-track.has-momentum span { animation: honest-pool-pulse 2.4s ease-in-out infinite alternate; }
+@keyframes honest-pool-pulse { to { filter: brightness(1.2) saturate(1.12); box-shadow: 0 0 28px rgba(184, 80, 255, .8); } }
 .pool-progress-scale { align-items: center; margin-top: 12px; color: var(--muted); font-size: .72rem; }
 .round-goal { display: flex; align-items: center; gap: 10px; color: #c9bfd7; text-transform: uppercase; letter-spacing: .055em; }
 .round-goal strong { position: relative; display: inline-flex; align-items: baseline; gap: 7px; padding: 7px 15px; overflow: hidden; border: 1px solid rgba(213, 174, 83, .62); border-radius: 9px; color: #ffe8a0; background: linear-gradient(145deg, rgba(91, 67, 24, .5), rgba(28, 23, 34, .92) 58%, rgba(112, 74, 18, .32)); box-shadow: inset 0 1px rgba(255, 239, 181, .14), 0 7px 20px rgba(0,0,0,.26), 0 0 16px rgba(207, 158, 49, .14); font-family: var(--font-display), Georgia, serif; font-size: clamp(1.05rem, 2vw, 1.38rem); letter-spacing: .04em; text-shadow: 0 1px 0 #5b3d0e, 0 0 10px rgba(255, 211, 91, .28); white-space: nowrap; }

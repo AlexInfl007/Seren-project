@@ -38,6 +38,17 @@ export type WinnerEntry = {
   explorerUrl: string;
 };
 
+export function mergeActivityEntries(primary: ActivityEntry[], fallback: ActivityEntry[]) {
+  const byTransaction = new Map<string, ActivityEntry>();
+  [...primary, ...fallback].forEach((entry) => {
+    const key = entry.transactionHash.toLowerCase();
+    if (!byTransaction.has(key)) byTransaction.set(key, entry);
+  });
+  return [...byTransaction.values()]
+    .sort((a, b) => (a.blockNumber > b.blockNumber ? -1 : a.blockNumber < b.blockNumber ? 1 : 0))
+    .slice(0, HISTORY_SCAN_CONFIG.purchaseLimit);
+}
+
 type CachedHistory = {
   latestBlock: string;
   activity: ActivityEntry[];

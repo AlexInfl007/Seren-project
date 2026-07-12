@@ -169,9 +169,18 @@ export function useWallet() {
 
     setState((current) => ({ ...current, connecting: true, error: undefined }));
     try {
-      const accounts = await provider.request<string[]>({ method: "eth_requestAccounts" });
+      const accounts = await provider.request<string[]>({
+        method: isMobileDevice() ? "eth_requestAccounts" : "eth_accounts",
+      });
       const [account] = accounts;
-      if (!account) throw new Error("No accounts returned");
+      if (!account) {
+        setState((current) => ({
+          ...current,
+          connecting: false,
+          error: { key: "noAccounts" },
+        }));
+        return;
+      }
       const chainId = await provider.request<string>({ method: "eth_chainId" });
       setState((current) => ({
         ...current,
@@ -257,6 +266,10 @@ export function useWallet() {
     }
 
     if (isMobileDevice()) {
+      if (process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID) {
+        await connectWalletConnect();
+        return;
+      }
       openMetaMaskMobile();
       return;
     }
@@ -322,6 +335,7 @@ export function useWallet() {
     ...state,
     walletClient,
     isPolygon: state.chainId === POLYGON_CHAIN_ID,
+    isMobile: isMobileDevice(),
     connectWithProvider,
     connectWalletConnect,
     connectPreferred,

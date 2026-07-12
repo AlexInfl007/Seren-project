@@ -30,7 +30,7 @@ import {
 import { useLanguage } from "@/hooks/useLanguage";
 import { useWallet } from "@/hooks/useWallet";
 import { createWalletPublicClient, readLotteryState, simulateTicketPurchase, type LotteryState } from "@/lib/contractReads";
-import { loadContractHistory, type ActivityEntry, type WinnerEntry } from "@/lib/contractHistory";
+import { loadContractHistory, mergeActivityEntries, type ActivityEntry, type WinnerEntry } from "@/lib/contractHistory";
 import { canLoadContractData } from "@/lib/dataGate";
 import { normalizeContractError, type AppError } from "@/lib/contractErrors";
 import { executeTicketPurchase } from "@/lib/purchaseFlow";
@@ -241,10 +241,9 @@ export default function SerenApp() {
 
         try {
           const history = await loadContractHistory(wallet.provider, forceHistory);
-          setActivity(history.activity);
+          setActivity((current) => mergeActivityEntries(history.activity, current));
           setWinners(history.winners);
         } catch {
-          setActivity([]);
           setWinners([]);
           setHistoryError(true);
         }
@@ -334,6 +333,11 @@ export default function SerenApp() {
       top: Math.max(15, Math.min(rect.bottom + 10, window.innerHeight - 420)),
       left: Math.max(15, Math.min(rect.left, window.innerWidth - width - 15)),
     });
+    if (!wallet.account) {
+      setWalletOpen(true);
+      void wallet.connectPreferred();
+      return;
+    }
     setWalletOpen((open) => !open);
   };
 
@@ -374,6 +378,18 @@ export default function SerenApp() {
       }
 
       setTxState({ status: "success", hash: result.hash });
+      setActivity((current) => mergeActivityEntries([
+        {
+          id: `${result.hash}-confirmed`,
+          buyer: wallet.account!,
+          round: lotteryState.round,
+          price: lotteryState.ticketPrice,
+          transactionHash: result.hash,
+          blockNumber: result.receipt.blockNumber,
+          timestamp: Date.now(),
+          explorerUrl: `${POLYGON_EXPLORER}/tx/${result.hash}`,
+        },
+      ], current));
       await refreshData(true);
     } catch (error) {
       setTxState({ status: "failed", error: normalizeContractError(error) });
@@ -531,7 +547,7 @@ export default function SerenApp() {
               <span>{t.dashboard.poolProgress}</span>
               <strong>{locked ? "—" : `${poolProgress.toLocaleString(undefined, { maximumFractionDigits: 2 })}%`}</strong>
             </div>
-            <div className="pool-progress-track" role="progressbar" aria-label={t.dashboard.poolProgress} aria-valuemin={0} aria-valuemax={100} aria-valuenow={locked ? 0 : poolProgress}>
+            <div className={`pool-progress-track ${poolProgress > 0 ? "has-momentum" : ""}`} role="progressbar" aria-label={t.dashboard.poolProgress} aria-valuemin={0} aria-valuemax={100} aria-valuenow={locked ? 0 : poolProgress}>
               <span style={{ width: `${locked ? 0 : poolProgress}%` }} />
             </div>
             <div className="pool-progress-scale">
