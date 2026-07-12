@@ -7,12 +7,12 @@ import {
   type Log,
   type PublicClient,
 } from "viem";
-import { polygon } from "viem/chains";
 import {
   CONTRACT_ABI,
   CONTRACT_ADDRESS,
   HISTORY_SCAN_CONFIG,
   POLYGON_EXPLORER,
+  POLYGON_CHAIN,
 } from "@/config/contract";
 import type { Eip1193Provider } from "@/lib/eip1193";
 
@@ -55,9 +55,15 @@ type CachedHistory = {
   winners: WinnerEntry[];
 };
 
+type HistoryApiResponse = {
+  latestBlock: string;
+  activity: Array<Omit<ActivityEntry, "round" | "price" | "blockNumber"> & { round: string; price?: string; blockNumber: string }>;
+  winners: Array<Omit<WinnerEntry, "round" | "prize" | "blockNumber"> & { round: string; prize?: string; blockNumber: string }>;
+};
+
 export function createHistoryClient(provider: Eip1193Provider): PublicClient {
   return createPublicClient({
-    chain: polygon,
+    chain: POLYGON_CHAIN,
     transport: custom(provider),
   }) as unknown as PublicClient;
 }
@@ -141,8 +147,12 @@ async function addTimestamps<T extends { blockNumber: bigint; timestamp?: number
 
   await Promise.all(
     uniqueBlocks.slice(0, 14).map(async (block) => {
-      const result = await client.getBlock({ blockNumber: BigInt(block) });
-      timestamps.set(block, Number(result.timestamp) * 1000);
+      try {
+        const result = await client.getBlock({ blockNumber: BigInt(block) });
+        timestamps.set(block, Number(result.timestamp) * 1000);
+      } catch {
+        // A timestamp is optional; never discard verified events when an RPC rate-limits block metadata.
+      }
     }),
   );
 
@@ -167,6 +177,7 @@ async function scanEvent<T>({
   let toBlock = latest;
   let blockSpan = HISTORY_SCAN_CONFIG.initialBlockSpan;
   const collected: T[] = [];
+  let transientRetries = 0;
 
   while (
     toBlock >= HISTORY_SCAN_CONFIG.deploymentBlock &&
@@ -193,10 +204,21 @@ async function scanEvent<T>({
           .reverse()
           .map((log) => mapper(log as Log & { args?: Record<string, unknown> })),
       );
+      transientRetries = 0;
 
       if (fromBlock === HISTORY_SCAN_CONFIG.deploymentBlock) break;
       toBlock = fromBlock - 1n;
     } catch (error) {
+      if (collected.length > 0) break;
+      const message = error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();
+      const rangeLimited = message.includes("range") || message.includes("blocks are not supported") || message.includes("block range too large");
+      if (!rangeLimited && transientRetries < 3) {
+        transientRetries += 1;
+        await new Promise((resolve) => setTimeout(resolve, transientRetries * 500));
+        continue;
+      }
+      if (!rangeLimited) throw error;
+      transientRetries = 0;
       blockSpan = blockSpan / 2n;
       if (blockSpan < HISTORY_SCAN_CONFIG.minBlockSpan) throw error;
     }
@@ -205,40 +227,57 @@ async function scanEvent<T>({
   return collected.slice(0, limit);
 }
 
-export async function loadContractHistory(provider: Eip1193Provider, force = false) {
-  const cached = !force ? readCachedHistory() : undefined;
-  const client = createHistoryClient(provider);
-  const latestBlock = await client.getBlockNumber();
-
-  if (cached?.latestBlock === latestBlock.toString()) {
-    return cached;
-  }
-
-  const [activityRaw, winnersRaw] = await Promise.all([
-    scanEvent({
-      client,
-      eventName: "TicketBought",
-      limit: HISTORY_SCAN_CONFIG.purchaseLimit,
-      mapper: ticketLogToActivity,
-    }),
-    scanEvent({
-      client,
-      eventName: "WinnerPicked",
-      limit: HISTORY_SCAN_CONFIG.winnerLimit,
-      mapper: winnerLogToEntry,
-    }),
+export async function loadHistoryFromClient(client: PublicClient) {
+  const [latestBlock, currentRound] = await Promise.all([
+    client.getBlockNumber(),
+    client.readContract({ address: CONTRACT_ADDRESS, abi: CONTRACT_ABI, functionName: "round" }) as Promise<bigint>,
   ]);
-
+  const [activityRaw, winnersRaw] = await Promise.all([
+    scanEvent({ client, eventName: "TicketBought", limit: HISTORY_SCAN_CONFIG.purchaseLimit, mapper: ticketLogToActivity }),
+    currentRound > 1n
+      ? scanEvent({ client, eventName: "WinnerPicked", limit: HISTORY_SCAN_CONFIG.winnerLimit, mapper: winnerLogToEntry })
+      : Promise.resolve([]),
+  ]);
   const [activity, winners] = await Promise.all([
     addTimestamps(client, activityRaw),
     addTimestamps(client, winnersRaw),
   ]);
+  return { latestBlock: latestBlock.toString(), activity, winners };
+}
 
-  const result = {
-    latestBlock: latestBlock.toString(),
-    activity,
-    winners,
+async function loadHistoryFromSiteApi(): Promise<CachedHistory> {
+  const response = await fetch("/api/history", { cache: "no-store" });
+  if (!response.ok) throw new Error(`History API returned ${response.status}`);
+  const data = await response.json() as HistoryApiResponse;
+  return {
+    latestBlock: data.latestBlock,
+    activity: data.activity.map((entry) => ({
+      ...entry,
+      round: BigInt(entry.round),
+      price: entry.price === undefined ? undefined : BigInt(entry.price),
+      blockNumber: BigInt(entry.blockNumber),
+    })),
+    winners: data.winners.map((entry) => ({
+      ...entry,
+      round: BigInt(entry.round),
+      prize: entry.prize === undefined ? undefined : BigInt(entry.prize),
+      blockNumber: BigInt(entry.blockNumber),
+    })),
   };
+}
+
+export async function loadContractHistory(provider: Eip1193Provider, force = false) {
+  const cached = !force ? readCachedHistory() : undefined;
+  try {
+    const publicHistory = await loadHistoryFromSiteApi();
+    if (cached?.latestBlock === publicHistory.latestBlock) return cached;
+    writeCachedHistory(publicHistory);
+    return publicHistory;
+  } catch {
+    // Local development and temporary API failures retain a wallet-RPC fallback.
+  }
+
+  const result = await loadHistoryFromClient(createHistoryClient(provider));
   writeCachedHistory(result);
   return result;
 }

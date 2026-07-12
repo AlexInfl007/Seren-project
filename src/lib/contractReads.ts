@@ -5,12 +5,12 @@ import {
   type PublicClient,
   type WalletClient,
 } from "viem";
-import { polygon } from "viem/chains";
 import {
   CANONICAL_PRICE_METHOD,
   CONTRACT_ABI,
   CONTRACT_ADDRESS,
   EXPECTED_TICKET_PRICE,
+  POLYGON_CHAIN,
 } from "@/config/contract";
 import type { Eip1193Provider } from "@/lib/eip1193";
 import { validatePurchaseMethod } from "@/lib/contractAdapter";
@@ -34,7 +34,7 @@ export type LotteryState = {
 
 export function createWalletPublicClient(provider: Eip1193Provider): PublicClient {
   return createPublicClient({
-    chain: polygon,
+    chain: POLYGON_CHAIN,
     transport: custom(provider),
   }) as unknown as PublicClient;
 }

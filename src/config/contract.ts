@@ -1,8 +1,15 @@
-import { getAddress, parseAbi, parseEther, type Abi } from "viem";
+import { defineChain, getAddress, parseAbi, parseEther, type Abi } from "viem";
 
 export const POLYGON_CHAIN_ID = 137;
 export const POLYGON_CHAIN_ID_HEX = "0x89";
 export const POLYGON_EXPLORER = "https://polygonscan.com";
+export const POLYGON_CHAIN = defineChain({
+  id: POLYGON_CHAIN_ID,
+  name: "Polygon",
+  nativeCurrency: { name: "POL", symbol: "POL", decimals: 18 },
+  rpcUrls: { default: { http: ["https://polygon.api.onfinality.io/public"] } },
+  blockExplorers: { default: { name: "PolygonScan", url: POLYGON_EXPLORER } },
+});
 export const CONTRACT_ADDRESS = getAddress(
   "0xf90169AD413429af4AE0a3B8962648d4a3289011",
 );
@@ -39,8 +46,8 @@ export const CONTRACT_ABI = parseAbi([
 
 export const HISTORY_SCAN_CONFIG = {
   deploymentBlock: DEPLOYMENT_BLOCK,
-  initialBlockSpan: 90_000n,
-  minBlockSpan: 2_000n,
+  initialBlockSpan: 9_000n,
+  minBlockSpan: 500n,
   purchaseLimit: 8,
   winnerLimit: 6,
   sessionKey: "seren.history.v1",

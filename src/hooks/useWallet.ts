@@ -2,10 +2,10 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createWalletClient, custom, getAddress, type Address, type Hex } from "viem";
-import { polygon } from "viem/chains";
 import {
   POLYGON_CHAIN_ID,
   POLYGON_CHAIN_ID_HEX,
+  POLYGON_CHAIN,
 } from "@/config/contract";
 import type { Eip1193Provider, WalletProviderInfo } from "@/lib/eip1193";
 import { normalizeContractError, type AppError } from "@/lib/contractErrors";
@@ -326,7 +326,7 @@ export function useWallet() {
     if (!state.provider || !state.account) return undefined;
     return createWalletClient({
       account: state.account,
-      chain: polygon,
+      chain: POLYGON_CHAIN,
       transport: custom(state.provider),
     });
   }, [state.provider, state.account]);
