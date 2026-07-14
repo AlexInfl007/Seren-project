@@ -30,7 +30,7 @@ import {
 import { useLanguage } from "@/hooks/useLanguage";
 import { useWallet } from "@/hooks/useWallet";
 import { createWalletPublicClient, readLotteryState, simulateTicketPurchase, type LotteryState } from "@/lib/contractReads";
-import { loadContractHistory, mergeActivityEntries, type ActivityEntry, type WinnerEntry } from "@/lib/contractHistory";
+import { loadContractHistory, loadPublicContractHistory, mergeActivityEntries, type ActivityEntry, type WinnerEntry } from "@/lib/contractHistory";
 import { canLoadContractData } from "@/lib/dataGate";
 import { normalizeContractError, type AppError } from "@/lib/contractErrors";
 import { executeTicketPurchase } from "@/lib/purchaseFlow";
@@ -160,6 +160,23 @@ export default function SerenApp() {
     [t],
   );
 
+  const refreshPublicHistory = useCallback(async (force = false) => {
+    try {
+      const history = await loadPublicContractHistory(force);
+      setActivity((current) => mergeActivityEntries(history.activity, current));
+      setWinners(history.winners);
+      setHistoryError(false);
+    } catch {
+      setHistoryError(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    void refreshPublicHistory();
+    const timer = window.setInterval(() => void refreshPublicHistory(true), 30_000);
+    return () => window.clearInterval(timer);
+  }, [refreshPublicHistory]);
+
   useEffect(() => {
     setPredictionUsed(window.sessionStorage.getItem("seren.prediction.revealed") === "1");
 
@@ -249,8 +266,6 @@ export default function SerenApp() {
         }
       } catch (error) {
         setLotteryState(undefined);
-        setActivity([]);
-        setWinners([]);
         setReadError({ key: "readFailed", technical: error instanceof Error ? error.message : "" });
         setSimulation({ status: "idle" });
       } finally {
@@ -265,9 +280,6 @@ export default function SerenApp() {
       void refreshData();
     } else {
       setLotteryState(undefined);
-      setActivity([]);
-      setWinners([]);
-      setHistoryError(false);
       setReadError(undefined);
       setSimulation({ status: "idle" });
     }
@@ -637,10 +649,9 @@ export default function SerenApp() {
               <span>{t.activity.time}</span>
               <span>{t.activity.tx}</span>
             </div>
-            {!dataAllowed && <p className="empty-state">{t.activity.locked}</p>}
-            {dataAllowed && historyError && <p className="empty-state">{t.activity.unavailable}</p>}
-            {dataAllowed && !historyError && activity.length === 0 && <p className="empty-state">{t.activity.empty}</p>}
-            {dataAllowed && !historyError && activity.map((item) => (
+            {historyError && activity.length === 0 && <p className="empty-state">{t.activity.unavailable}</p>}
+            {!historyError && activity.length === 0 && <p className="empty-state">{t.activity.empty}</p>}
+            {activity.map((item) => (
               <Link className="purchase-row" key={item.id} href={item.explorerUrl} target="_blank">
                 <span>{shortenAddress(item.buyer)}</span>
                 <span>{formatCount(item.round)}</span>
@@ -669,10 +680,9 @@ export default function SerenApp() {
               <span>{t.winners.time}</span>
               <span>{t.winners.tx}</span>
             </div>
-            {!dataAllowed && <p className="empty-state">{t.winners.locked}</p>}
-            {dataAllowed && historyError && <p className="empty-state">{t.winners.unavailable}</p>}
-            {dataAllowed && !historyError && winners.length === 0 && <p className="empty-state">{t.winners.empty}</p>}
-            {dataAllowed && !historyError && winners.map((item) => (
+            {historyError && winners.length === 0 && <p className="empty-state">{t.winners.unavailable}</p>}
+            {!historyError && winners.length === 0 && <p className="empty-state">{t.winners.empty}</p>}
+            {winners.map((item) => (
               <Link className="winner-row" key={item.id} href={item.explorerUrl} target="_blank">
                 <span>{formatCount(item.round)}</span>
                 <span>{shortenAddress(item.winner)}</span>

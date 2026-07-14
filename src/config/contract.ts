@@ -48,6 +48,7 @@ export const HISTORY_SCAN_CONFIG = {
   deploymentBlock: DEPLOYMENT_BLOCK,
   initialBlockSpan: 9_000n,
   minBlockSpan: 500n,
+  maxWindows: 24,
   purchaseLimit: 8,
   winnerLimit: 6,
   sessionKey: "seren.history.v1",

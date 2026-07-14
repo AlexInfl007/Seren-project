@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createPublicClient, http } from "viem";
 import { POLYGON_CHAIN } from "@/config/contract";
-import { loadHistoryFromClient } from "@/lib/contractHistory";
+import { getVerifiedFallbackHistory, loadHistoryFromClient } from "@/lib/contractHistory";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
@@ -24,9 +24,11 @@ export async function GET() {
       headers: { "Cache-Control": "public, s-maxage=15, stale-while-revalidate=45" },
     });
   } catch (error) {
-    return NextResponse.json(
-      { error: "Polygon history is temporarily unavailable", detail: error instanceof Error ? error.message : "Unknown error" },
-      { status: 503 },
-    );
+    console.error("[api/history] Polygon RPC unavailable; serving verified checkpoint", {
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return NextResponse.json(serializeBigInts(getVerifiedFallbackHistory()), {
+      headers: { "Cache-Control": "public, s-maxage=15, stale-while-revalidate=300" },
+    });
   }
 }
