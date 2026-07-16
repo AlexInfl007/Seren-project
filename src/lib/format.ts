@@ -23,7 +23,7 @@ export function shortenHash(value?: string, size = 6): string {
   return `${value.slice(0, size + 2)}…${value.slice(-size)}`;
 }
 
-export function formatTimestamp(timestamp?: number): string {
+export function formatTimestamp(timestamp?: number, timeZone?: string): string {
   if (!timestamp) return "—";
   return new Intl.DateTimeFormat("en-US", {
     month: "short",
@@ -31,5 +31,7 @@ export function formatTimestamp(timestamp?: number): string {
     year: "numeric",
     hour: "2-digit",
     minute: "2-digit",
+    timeZoneName: "short",
+    ...(timeZone ? { timeZone } : {}),
   }).format(new Date(timestamp));
 }

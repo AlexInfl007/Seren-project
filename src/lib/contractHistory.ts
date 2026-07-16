@@ -90,6 +90,17 @@ export function createHistoryClient(provider: Eip1193Provider): PublicClient {
   }) as unknown as PublicClient;
 }
 
+export function blockTimestampToMilliseconds(value: unknown): number | undefined {
+  if (typeof value !== "bigint" && typeof value !== "number" && typeof value !== "string") return undefined;
+  try {
+    const numeric = typeof value === "bigint" ? value : BigInt(value);
+    if (numeric <= 0n) return undefined;
+    return Number(numeric > 10_000_000_000n ? numeric : numeric * 1_000n);
+  } catch {
+    return undefined;
+  }
+}
+
 export function ticketLogToActivity(log: Log & { args?: Record<string, unknown> }): ActivityEntry {
   const args = log.args || {};
   const buyer = (args.buyer || args.player || args.account) as Address;
@@ -103,6 +114,7 @@ export function ticketLogToActivity(log: Log & { args?: Record<string, unknown> 
     price: typeof price === "bigint" ? price : EXPECTED_TICKET_PRICE,
     transactionHash: log.transactionHash!,
     blockNumber: log.blockNumber!,
+    timestamp: blockTimestampToMilliseconds((log as Log & { blockTimestamp?: unknown }).blockTimestamp),
     explorerUrl: `${POLYGON_EXPLORER}/tx/${log.transactionHash}`,
   };
 }
@@ -120,6 +132,7 @@ export function winnerLogToEntry(log: Log & { args?: Record<string, unknown> }):
     prize: typeof prize === "bigint" ? prize : undefined,
     transactionHash: log.transactionHash!,
     blockNumber: log.blockNumber!,
+    timestamp: blockTimestampToMilliseconds((log as Log & { blockTimestamp?: unknown }).blockTimestamp),
     explorerUrl: `${POLYGON_EXPLORER}/tx/${log.transactionHash}`,
   };
 }
@@ -164,23 +177,24 @@ async function addTimestamps<T extends { blockNumber: bigint; timestamp?: number
   client: PublicClient,
   rows: T[],
 ): Promise<T[]> {
-  const uniqueBlocks = [...new Set(rows.map((row) => row.blockNumber.toString()))];
+  const uniqueBlocks = [...new Set(rows.filter((row) => !row.timestamp).map((row) => row.blockNumber.toString()))];
   const timestamps = new Map<string, number>();
 
-  await Promise.all(
-    uniqueBlocks.slice(0, 14).map(async (block) => {
+  for (const block of uniqueBlocks.slice(0, 14)) {
+    for (let attempt = 0; attempt < 2; attempt += 1) {
       try {
         const result = await client.getBlock({ blockNumber: BigInt(block) });
         timestamps.set(block, Number(result.timestamp) * 1000);
+        break;
       } catch {
-        // A timestamp is optional; never discard verified events when an RPC rate-limits block metadata.
+        if (attempt === 0) await new Promise((resolve) => setTimeout(resolve, 250));
       }
-    }),
-  );
+    }
+  }
 
   return rows.map((row) => ({
     ...row,
-    timestamp: timestamps.get(row.blockNumber.toString()),
+    timestamp: row.timestamp ?? timestamps.get(row.blockNumber.toString()),
   }));
 }
 
@@ -299,7 +313,6 @@ export async function loadPublicContractHistory(force = false) {
   const cached = !force ? readCachedHistory() : undefined;
   try {
     const publicHistory = await loadHistoryFromSiteApi();
-    if (cached?.latestBlock === publicHistory.latestBlock) return cached;
     writeCachedHistory(publicHistory);
     return publicHistory;
   } catch {

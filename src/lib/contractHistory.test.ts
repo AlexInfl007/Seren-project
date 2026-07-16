@@ -1,6 +1,6 @@
 import { parseEther } from "viem";
 import { describe, expect, it } from "vitest";
-import { getVerifiedFallbackHistory, loadHistoryFromClient, mergeActivityEntries, ticketLogToActivity, winnerLogToEntry } from "@/lib/contractHistory";
+import { blockTimestampToMilliseconds, getVerifiedFallbackHistory, loadHistoryFromClient, mergeActivityEntries, ticketLogToActivity, winnerLogToEntry } from "@/lib/contractHistory";
 
 const baseLog = {
   transactionHash: "0x123400000000000000000000000000000000000000000000000000000000abcd",
@@ -35,6 +35,17 @@ describe("event view-model conversion", () => {
     } as never);
 
     expect(row.price).toBe(parseEther("30"));
+  });
+
+  it("preserves the exact timestamp supplied with a Polygon event", () => {
+    const row = ticketLogToActivity({
+      ...baseLog,
+      blockTimestamp: 1_783_886_284n,
+      args: { buyer: "0xf90169AD413429af4AE0a3B8962648d4a3289011", round: 1n },
+    } as never);
+
+    expect(row.timestamp).toBe(1_783_886_284_000);
+    expect(blockTimestampToMilliseconds("0x6a53f1cc")).toBe(1_783_886_284_000);
   });
 
   it("maps winner events into winner rows", () => {

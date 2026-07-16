@@ -14,8 +14,16 @@ describe("format helpers", () => {
   });
 
   it("always formats purchase dates in English", () => {
-    const formatted = formatTimestamp(Date.UTC(2026, 0, 15, 12, 30));
+    const formatted = formatTimestamp(Date.UTC(2026, 0, 15, 12, 30), "UTC");
     expect(formatted).toContain("Jan");
     expect(formatted).toContain("2026");
+    expect(formatted).toContain("UTC");
+  });
+
+  it("converts the same purchase moment for the viewer's time zone", () => {
+    const timestamp = Date.UTC(2026, 0, 15, 12, 30);
+    expect(formatTimestamp(timestamp, "America/New_York")).not.toBe(
+      formatTimestamp(timestamp, "Asia/Tokyo"),
+    );
   });
 });
