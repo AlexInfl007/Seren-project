@@ -10,6 +10,7 @@ import {
 import {
   CONTRACT_ABI,
   CONTRACT_ADDRESS,
+  EXPECTED_TICKET_PRICE,
   HISTORY_SCAN_CONFIG,
   POLYGON_EXPLORER,
   POLYGON_CHAIN,
@@ -42,7 +43,7 @@ const VERIFIED_ACTIVITY_CHECKPOINT: ActivityEntry = {
   id: "0xbd1013189ff2098dab92aeb6cfef46fea5df720f86cc015a6ebf7c29f91c07ca-1402",
   buyer: "0x5916B50c383Ab3732c4896A7EFadd155f00fF01F",
   round: 1n,
-  price: 30_000_000_000_000_000_000n,
+  price: EXPECTED_TICKET_PRICE,
   transactionHash: "0xbd1013189ff2098dab92aeb6cfef46fea5df720f86cc015a6ebf7c29f91c07ca",
   blockNumber: 90_120_859n,
   timestamp: 1_783_886_284_000,
@@ -61,7 +62,9 @@ export function mergeActivityEntries(primary: ActivityEntry[], fallback: Activit
   const byTransaction = new Map<string, ActivityEntry>();
   [...primary, ...fallback].forEach((entry) => {
     const key = entry.transactionHash.toLowerCase();
-    if (!byTransaction.has(key)) byTransaction.set(key, entry);
+    if (!byTransaction.has(key)) {
+      byTransaction.set(key, { ...entry, price: entry.price ?? EXPECTED_TICKET_PRICE });
+    }
   });
   return [...byTransaction.values()]
     .sort((a, b) => (a.blockNumber > b.blockNumber ? -1 : a.blockNumber < b.blockNumber ? 1 : 0))
@@ -97,7 +100,7 @@ export function ticketLogToActivity(log: Log & { args?: Record<string, unknown> 
     id: `${log.transactionHash}-${log.logIndex}`,
     buyer,
     round,
-    price: typeof price === "bigint" ? price : undefined,
+    price: typeof price === "bigint" ? price : EXPECTED_TICKET_PRICE,
     transactionHash: log.transactionHash!,
     blockNumber: log.blockNumber!,
     explorerUrl: `${POLYGON_EXPLORER}/tx/${log.transactionHash}`,
@@ -280,7 +283,7 @@ async function loadHistoryFromSiteApi(): Promise<CachedHistory> {
     activity: data.activity.map((entry) => ({
       ...entry,
       round: BigInt(entry.round),
-      price: entry.price === undefined ? undefined : BigInt(entry.price),
+      price: entry.price === undefined ? EXPECTED_TICKET_PRICE : BigInt(entry.price),
       blockNumber: BigInt(entry.blockNumber),
     })),
     winners: data.winners.map((entry) => ({

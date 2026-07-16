@@ -25,7 +25,7 @@ export function shortenHash(value?: string, size = 6): string {
 
 export function formatTimestamp(timestamp?: number): string {
   if (!timestamp) return "—";
-  return new Intl.DateTimeFormat(undefined, {
+  return new Intl.DateTimeFormat("en-US", {
     month: "short",
     day: "numeric",
     year: "numeric",

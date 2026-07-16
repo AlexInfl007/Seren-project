@@ -1,6 +1,6 @@
 import { parseEther } from "viem";
 import { describe, expect, it } from "vitest";
-import { formatCount, formatPol, shortenAddress } from "@/lib/format";
+import { formatCount, formatPol, formatTimestamp, shortenAddress } from "@/lib/format";
 
 describe("format helpers", () => {
   it("formats POL without excessive decimals", () => {
@@ -11,5 +11,11 @@ describe("format helpers", () => {
   it("formats counts and addresses", () => {
     expect(formatCount(12345n)).toBe("12,345");
     expect(shortenAddress("0xf90169AD413429af4AE0a3B8962648d4a3289011")).toBe("0xf901…9011");
+  });
+
+  it("always formats purchase dates in English", () => {
+    const formatted = formatTimestamp(Date.UTC(2026, 0, 15, 12, 30));
+    expect(formatted).toContain("Jan");
+    expect(formatted).toContain("2026");
   });
 });

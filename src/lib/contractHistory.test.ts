@@ -25,6 +25,18 @@ describe("event view-model conversion", () => {
     expect(row.explorerUrl).toContain("/tx/");
   });
 
+  it("uses the fixed contract price when TicketBought does not include a price", () => {
+    const row = ticketLogToActivity({
+      ...baseLog,
+      args: {
+        buyer: "0xf90169AD413429af4AE0a3B8962648d4a3289011",
+        round: 5n,
+      },
+    } as never);
+
+    expect(row.price).toBe(parseEther("30"));
+  });
+
   it("maps winner events into winner rows", () => {
     const row = winnerLogToEntry({
       ...baseLog,
@@ -47,6 +59,16 @@ describe("event view-model conversion", () => {
     } as never);
     expect(mergeActivityEntries([], [optimistic])).toEqual([optimistic]);
     expect(mergeActivityEntries([optimistic], [optimistic])).toHaveLength(1);
+  });
+
+  it("repairs cached purchase rows that were saved without a price", () => {
+    const legacy = ticketLogToActivity({
+      ...baseLog,
+      args: { buyer: "0xf90169AD413429af4AE0a3B8962648d4a3289011", round: 7n },
+    } as never);
+    legacy.price = undefined;
+
+    expect(mergeActivityEntries([legacy], [])[0].price).toBe(parseEther("30"));
   });
 
   it("always has the verified on-chain purchase as a public fallback", () => {

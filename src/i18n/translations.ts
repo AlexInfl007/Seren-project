@@ -494,15 +494,5 @@ export function detectInitialLanguage(): Language {
   if (typeof window === "undefined") return "en";
   const stored = window.localStorage.getItem("seren.lang");
   if (stored && languages.includes(stored as Language)) return stored as Language;
-
-  const browserLanguages = navigator.languages?.length ? navigator.languages : [navigator.language];
-  const match = browserLanguages
-    .map((value) => value.toLowerCase())
-    .map((value) => {
-      if (value.startsWith("zh")) return "zh-CN";
-      return languages.find((language) => value === language.toLowerCase() || value.startsWith(`${language.toLowerCase()}-`));
-    })
-    .find(Boolean);
-
-  return (match as Language) || "en";
+  return "en";
 }
