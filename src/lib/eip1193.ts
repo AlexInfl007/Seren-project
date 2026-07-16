@@ -10,6 +10,13 @@ export type Eip1193Provider = {
   on?: (event: string, listener: (...args: unknown[]) => void) => void;
   removeListener?: (event: string, listener: (...args: unknown[]) => void) => void;
   isMetaMask?: boolean;
+  isRabby?: boolean;
+  isCoinbaseWallet?: boolean;
+  isTrust?: boolean;
+  isPhantom?: boolean;
+  isBraveWallet?: boolean;
+  isOKExWallet?: boolean;
+  isTokenPocket?: boolean;
 };
 
 export type WalletProviderInfo = {

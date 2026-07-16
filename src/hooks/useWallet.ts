@@ -9,6 +9,7 @@ import {
 } from "@/config/contract";
 import type { Eip1193Provider, WalletProviderInfo } from "@/lib/eip1193";
 import { normalizeContractError, type AppError } from "@/lib/contractErrors";
+import { discoverInjectedProviders, requestProviderAccounts, uniqueProviders } from "@/lib/walletProviders";
 
 type Eip6963AnnounceEvent = CustomEvent<{
   info: { uuid: string; name: string; icon?: string; rdns?: string };
@@ -31,31 +32,13 @@ function chainHexToNumber(chainId: string | number): number {
   return Number.parseInt(chainId, 16);
 }
 
-function uniqueProviders(providers: WalletProviderInfo[]) {
-  const map = new Map<string, WalletProviderInfo>();
-  providers.forEach((provider) => map.set(provider.id, provider));
-  return [...map.values()];
-}
-
-function discoverInjectedProviders() {
-  if (typeof window === "undefined") return [];
-  const ethereum = window.ethereum;
-  if (!ethereum) return [];
-
-  const sources = ethereum.providers?.length ? ethereum.providers : [ethereum.selectedProvider || ethereum];
-  return sources.map((provider, index) => ({
-    id: provider.isMetaMask ? "metamask" : `injected-${index}`,
-    name: provider.isMetaMask ? "MetaMask" : "Browser wallet",
-    provider,
-  }));
-}
-
 function isMobileDevice() {
   return typeof navigator !== "undefined" && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 }
 
 export function useWallet() {
   const restoreStarted = useRef(false);
+  const providersRef = useRef<WalletProviderInfo[]>([]);
   const [state, setState] = useState<WalletState>({
     providers: [],
     connecting: false,
@@ -64,9 +47,11 @@ export function useWallet() {
   });
 
   const refreshProviders = useCallback(() => {
+    const providers = uniqueProviders([...providersRef.current, ...discoverInjectedProviders()]);
+    providersRef.current = providers;
     setState((current) => ({
       ...current,
-      providers: uniqueProviders([...current.providers, ...discoverInjectedProviders()]),
+      providers,
     }));
   }, []);
 
@@ -75,24 +60,33 @@ export function useWallet() {
 
     const onAnnounce = (event: Event) => {
       const detail = (event as Eip6963AnnounceEvent).detail;
+      if (!detail?.provider || typeof detail.provider.request !== "function" || !detail.info?.uuid) return;
+      const providers = uniqueProviders([
+        ...providersRef.current,
+        {
+          id: detail.info.uuid,
+          name: detail.info.name,
+          icon: detail.info.icon,
+          rdns: detail.info.rdns,
+          provider: detail.provider,
+        },
+      ]);
+      providersRef.current = providers;
       setState((current) => ({
         ...current,
-        providers: uniqueProviders([
-          ...current.providers,
-          {
-            id: detail.info.uuid,
-            name: detail.info.name,
-            icon: detail.info.icon,
-            rdns: detail.info.rdns,
-            provider: detail.provider,
-          },
-        ]),
+        providers,
       }));
     };
 
     window.addEventListener("eip6963:announceProvider", onAnnounce);
+    window.addEventListener("ethereum#initialized", refreshProviders);
     window.dispatchEvent(new Event("eip6963:requestProvider"));
-    return () => window.removeEventListener("eip6963:announceProvider", onAnnounce);
+    const retryTimers = [250, 1_000, 2_500].map((delay) => window.setTimeout(refreshProviders, delay));
+    return () => {
+      window.removeEventListener("eip6963:announceProvider", onAnnounce);
+      window.removeEventListener("ethereum#initialized", refreshProviders);
+      retryTimers.forEach((timer) => window.clearTimeout(timer));
+    };
   }, [refreshProviders]);
 
   useEffect(() => {
@@ -169,9 +163,7 @@ export function useWallet() {
 
     setState((current) => ({ ...current, connecting: true, error: undefined }));
     try {
-      const accounts = await provider.request<string[]>({
-        method: isMobileDevice() ? "eth_requestAccounts" : "eth_accounts",
-      });
+      const accounts = await requestProviderAccounts(provider);
       const [account] = accounts;
       if (!account) {
         setState((current) => ({
@@ -228,6 +220,7 @@ export function useWallet() {
       const accounts = provider.enable
         ? await provider.enable()
         : await provider.request<string[]>({ method: "eth_requestAccounts" });
+      if (!accounts[0]) throw new Error("Wallet returned no accounts");
       const chainId = await provider.request<string>({ method: "eth_chainId" });
       setState((current) => ({
         ...current,
@@ -255,9 +248,12 @@ export function useWallet() {
   }, []);
 
   const connectPreferred = useCallback(async () => {
-    const available = uniqueProviders([...state.providers, ...discoverInjectedProviders()]);
+    window.dispatchEvent(new Event("eip6963:requestProvider"));
+    const available = uniqueProviders([...providersRef.current, ...discoverInjectedProviders()]);
+    providersRef.current = available;
+    setState((current) => ({ ...current, providers: available }));
     const metaMask = available.find(
-      (item) => item.id === "metamask" || item.rdns?.toLowerCase().includes("metamask"),
+      (item) => item.name.toLowerCase().includes("metamask") || item.rdns?.toLowerCase().includes("metamask"),
     );
 
     if (metaMask) {
@@ -285,7 +281,7 @@ export function useWallet() {
     }
 
     setState((current) => ({ ...current, error: { key: "walletUnavailable" } }));
-  }, [connectWalletConnect, connectWithProvider, openMetaMaskMobile, state.providers]);
+  }, [connectWalletConnect, connectWithProvider, openMetaMaskMobile]);
 
   const switchToPolygon = useCallback(async () => {
     if (!state.provider) return;
@@ -296,7 +292,32 @@ export function useWallet() {
       });
       setState((current) => ({ ...current, chainId: POLYGON_CHAIN_ID, error: undefined }));
     } catch (error) {
-      // No public fallback RPC is bundled. Users configure unknown networks in their wallet.
+      const code = typeof error === "object" && error !== null && "code" in error
+        ? Number((error as { code?: unknown }).code)
+        : undefined;
+      if (code === 4902) {
+        try {
+          await state.provider.request({
+            method: "wallet_addEthereumChain",
+            params: [{
+              chainId: POLYGON_CHAIN_ID_HEX,
+              chainName: POLYGON_CHAIN.name,
+              nativeCurrency: POLYGON_CHAIN.nativeCurrency,
+              rpcUrls: [...POLYGON_CHAIN.rpcUrls.default.http],
+              blockExplorerUrls: [POLYGON_CHAIN.blockExplorers.default.url],
+            }],
+          });
+          await state.provider.request({
+            method: "wallet_switchEthereumChain",
+            params: [{ chainId: POLYGON_CHAIN_ID_HEX }],
+          });
+          setState((current) => ({ ...current, chainId: POLYGON_CHAIN_ID, error: undefined }));
+          return;
+        } catch (addError) {
+          setState((current) => ({ ...current, error: normalizeContractError(addError) }));
+          return;
+        }
+      }
       setState((current) => ({ ...current, error: normalizeContractError(error) }));
     }
   }, [state.provider]);
