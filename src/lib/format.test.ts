@@ -10,6 +10,6 @@ describe("format helpers", () => {
 
   it("formats counts and addresses", () => {
     expect(formatCount(12345n)).toBe("12,345");
-    expect(shortenAddress("0xf90169AD413429af4AE0a3B8962648d4a3289011")).toBe("0xf901…9011");
+    expect(shortenAddress("0x0C59B1c64925425AB307Cc19A92AD176E0709360")).toBe("0x0C59…9360");
   });
 });

@@ -33,3 +33,8 @@ export function formatTimestamp(timestamp?: number): string {
     minute: "2-digit",
   }).format(new Date(timestamp));
 }
+
+export function formatUnixTimestamp(timestamp?: bigint | null): string {
+  if (!timestamp || timestamp === 0n) return "—";
+  return formatTimestamp(Number(timestamp) * 1000);
+}

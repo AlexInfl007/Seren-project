@@ -4,11 +4,11 @@ import "./globals.css";
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://seren-project.vercel.app"),
   title: { default: "Seren Lottery Chain", template: "%s | Seren Lottery Chain" },
-  description: "Transparent Polygon lottery interface with wallet-gated on-chain data.",
+  description: "Buy 1–100 on-chain lottery tickets, use referral credits, inspect 10 winner places, and claim prizes on Polygon.",
   alternates: { canonical: "/" },
   openGraph: {
     title: "Seren Lottery Chain",
-    description: "A wallet-gated interface for the verified Seren lottery contract on Polygon.",
+    description: "Verified Polygon lottery with exact contract quotes, referral credits, 10 winner places, and self-service prize claims.",
     type: "website",
     locale: "en_US",
     siteName: "Seren Lottery Chain",
@@ -16,7 +16,7 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary",
     title: "Seren Lottery Chain",
-    description: "A wallet-gated interface for the verified Seren lottery contract on Polygon.",
+    description: "Verified Polygon lottery with referral credits, 10 winner places, and prize claims.",
   },
   icons: {
     icon: "/favicon.png",
