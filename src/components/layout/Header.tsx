@@ -85,9 +85,9 @@ export default function Header({ locale, content }: { locale: Locale; content: S
               {locales.map((item) => <option value={item} key={item}>{localeShortLabels[item]}</option>)}
             </select>
           </label>
-          <button ref={walletButtonRef} type="button" className="button button--outline header-wallet" aria-expanded={walletOpen} aria-controls={walletId} onClick={() => { setWalletOpen((value) => !value); setMobileOpen(false); }}>
+          <button ref={walletButtonRef} type="button" className="button button--outline header-wallet" aria-expanded={walletOpen} aria-controls={walletId} aria-busy={wallet.connecting} onClick={() => { setWalletOpen((value) => !value); setMobileOpen(false); }}>
             <Wallet aria-hidden="true" />
-            <span>{wallet.account ? shortenAddress(wallet.account) : wallet.connecting ? ui.wallet.connecting : ui.wallet.connect}</span>
+            <span aria-live="polite">{wallet.account ? shortenAddress(wallet.account) : wallet.connecting ? ui.wallet.connecting : ui.wallet.connect}</span>
           </button>
           <button type="button" className="icon-control mobile-menu-button" aria-label={mobileOpen ? ui.wallet.close : ui.wallet.menu} aria-expanded={mobileOpen} aria-controls={menuId} onClick={() => { setMobileOpen((value) => !value); setWalletOpen(false); }}>
             {mobileOpen ? <X /> : <Menu />}
@@ -107,6 +107,7 @@ export default function Header({ locale, content }: { locale: Locale; content: S
               {walletConnectConfigured() && <button type="button" onClick={wallet.connectWalletConnect}><Wallet />WalletConnect</button>}
               {wallet.providers.length === 0 && !walletConnectConfigured() && <p>{ui.wallet.unavailable}</p>}
             </>}
+            {wallet.error && <p className="inline-error" role="status" aria-live="polite">{ui.errors[wallet.error.key]}</p>}
           </div>
         )}
       </Container>

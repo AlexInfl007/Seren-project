@@ -22,6 +22,8 @@ export type ActivityEntry = {
   amount?: bigint;
   place?: number;
   ticketId?: bigint;
+  firstTicketId?: bigint;
+  lastTicketId?: bigint;
   explorerUrl: string;
 };
 
@@ -51,6 +53,8 @@ export function decodedLogToActivity(log: DecodedLog): ActivityEntry | undefined
     amount: toBigInt(args.paid) ?? toBigInt(args.prize) ?? toBigInt(args.amount) ?? toBigInt(args.netPrizePool),
     place: typeof args.place === "number" ? args.place : undefined,
     ticketId: toBigInt(args.ticketId),
+    firstTicketId: toBigInt(args.firstTicketId),
+    lastTicketId: toBigInt(args.lastTicketId),
     explorerUrl: transactionLink(log.transactionHash),
   };
 }

@@ -7,11 +7,13 @@ const baseLog = { transactionHash: "0x123400000000000000000000000000000000000000
 
 describe("new-contract event decoding", () => {
   it("maps TicketPurchased without local price calculations", () => {
-    const row = decodedLogToActivity({ ...baseLog, eventName: "TicketPurchased", args: { buyer: "0x0C59B1c64925425AB307Cc19A92AD176E0709360", roundId: 5n, quantity: 10n, paid: parseEther("270") } } as never)!;
+    const row = decodedLogToActivity({ ...baseLog, eventName: "TicketPurchased", args: { buyer: "0x0C59B1c64925425AB307Cc19A92AD176E0709360", roundId: 5n, quantity: 10n, paid: parseEther("270"), firstTicketId: 41n, lastTicketId: 50n } } as never)!;
     expect(row.eventName).toBe("TicketPurchased");
     expect(row.roundId).toBe(5n);
     expect(row.quantity).toBe(10n);
     expect(row.amount).toBe(parseEther("270"));
+    expect(row.firstTicketId).toBe(41n);
+    expect(row.lastTicketId).toBe(50n);
   });
 
   it("supports winner and referral events and starts at the deployment block", () => {

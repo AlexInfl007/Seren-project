@@ -28,7 +28,7 @@ describe("localized marketing content", () => {
       expect(content.hero.title.length).toBeGreaterThan(12);
       expect(content.hero.description.length).toBeGreaterThan(40);
       expect(content.how.steps).toHaveLength(4);
-      expect(content.trust).toHaveLength(5);
+      expect(content.trust).toHaveLength(6);
       expect(content.faq.items.length).toBeGreaterThanOrEqual(13);
       expect(content.faq.items.every((item) => item.question.trim() && item.answer.trim())).toBe(true);
     }
@@ -44,8 +44,8 @@ describe("localized marketing content", () => {
     const headings = container.querySelectorAll("h1");
     expect(headings).toHaveLength(1);
     expect(headings[0]).not.toHaveClass("sr-only");
-    expect(screen.getByRole("link", { name: /Explore the current round/i })).toHaveAttribute("href", "/en#lottery");
-    expect(screen.getByRole("link", { name: /View verified contract/i })).toHaveAttribute("href", CONTRACT_LINK);
+    expect(screen.getByRole("link", { name: siteContent.en.hero.primary })).toHaveAttribute("href", "/en#lottery");
+    expect(screen.getByRole("link", { name: siteContent.en.hero.secondary })).toHaveAttribute("href", CONTRACT_LINK);
     expect(CONTRACT_LINK).toContain(CONTRACT_ADDRESS);
   });
 

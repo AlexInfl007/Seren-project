@@ -9,6 +9,8 @@ import PrizeStructureSection from "@/components/marketing/PrizeStructureSection"
 import ReferralSection from "@/components/marketing/ReferralSection";
 import TransparencySection from "@/components/marketing/TransparencySection";
 import TrustBar from "@/components/marketing/TrustBar";
+import FloatingPolCoins from "@/components/experience/FloatingPolCoins";
+import SerenOracle from "@/components/experience/SerenOracle";
 import Footer from "@/components/layout/Footer";
 import Header from "@/components/layout/Header";
 import LotteryDashboard from "@/components/lottery/LotteryDashboard";
@@ -67,11 +69,13 @@ export default async function LocalePage({ params }: Props) {
     <WalletProvider>
       <Header locale={locale} content={content} />
       <main>
+        <FloatingPolCoins />
         <HeroSection locale={locale} content={content} />
         <TrustBar content={content} />
+        <SerenOracle locale={locale} />
         <LotteryDashboard
           locale={locale}
-          afterRound={<><HowItWorksSection content={content} /><PrizeStructureSection content={content} /><ReferralSection content={content} /></>}
+          afterRound={<><HowItWorksSection content={content} /><PrizeStructureSection locale={locale} content={content} /><ReferralSection content={content} /></>}
           beforeAccount={<AccountSection content={content} />}
           beforeTransparency={<TransparencySection content={content} />}
           afterDashboard={<><FaqSection content={content} /><FinalCtaSection locale={locale} content={content} /></>}
