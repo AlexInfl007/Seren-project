@@ -1,42 +1,23 @@
 import { parseEther } from "viem";
 import { describe, expect, it } from "vitest";
-import { ticketLogToActivity, winnerLogToEntry } from "@/lib/contractHistory";
+import { ACTIVITY_EVENTS, decodedLogToActivity } from "@/lib/contractHistory";
+import { DEPLOYMENT_BLOCK, HISTORY_SCAN_CONFIG } from "@/config/contract";
 
-const baseLog = {
-  transactionHash: "0x123400000000000000000000000000000000000000000000000000000000abcd",
-  blockNumber: 10n,
-  logIndex: 2,
-};
+const baseLog = { transactionHash: "0x123400000000000000000000000000000000000000000000000000000000abcd", blockNumber: DEPLOYMENT_BLOCK, logIndex: 2 };
 
-describe("event view-model conversion", () => {
-  it("maps ticket events into activity rows", () => {
-    const row = ticketLogToActivity({
-      ...baseLog,
-      args: {
-        buyer: "0xf90169AD413429af4AE0a3B8962648d4a3289011",
-        round: 5n,
-        price: parseEther("30"),
-      },
-    } as never);
-
-    expect(row.buyer).toBe("0xf90169AD413429af4AE0a3B8962648d4a3289011");
-    expect(row.round).toBe(5n);
-    expect(row.price).toBe(parseEther("30"));
-    expect(row.explorerUrl).toContain("/tx/");
+describe("new-contract event decoding", () => {
+  it("maps TicketPurchased without local price calculations", () => {
+    const row = decodedLogToActivity({ ...baseLog, eventName: "TicketPurchased", args: { buyer: "0x0C59B1c64925425AB307Cc19A92AD176E0709360", roundId: 5n, quantity: 10n, paid: parseEther("270") } } as never)!;
+    expect(row.eventName).toBe("TicketPurchased");
+    expect(row.roundId).toBe(5n);
+    expect(row.quantity).toBe(10n);
+    expect(row.amount).toBe(parseEther("270"));
   });
 
-  it("maps winner events into winner rows", () => {
-    const row = winnerLogToEntry({
-      ...baseLog,
-      args: {
-        winner: "0xf90169AD413429af4AE0a3B8962648d4a3289011",
-        round: 6n,
-        prize: parseEther("90"),
-      },
-    } as never);
-
-    expect(row.winner).toBe("0xf90169AD413429af4AE0a3B8962648d4a3289011");
-    expect(row.round).toBe(6n);
-    expect(row.prize).toBe(parseEther("90"));
+  it("supports winner and referral events and starts at the deployment block", () => {
+    expect(ACTIVITY_EVENTS).toContain("WinnerSelected");
+    expect(ACTIVITY_EVENTS).toContain("ReferralCreditGranted");
+    expect(HISTORY_SCAN_CONFIG.deploymentBlock).toBe(DEPLOYMENT_BLOCK);
+    expect(HISTORY_SCAN_CONFIG.sessionKey).toContain("seren.history.v2");
   });
 });

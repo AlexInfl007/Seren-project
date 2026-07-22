@@ -1,240 +1,115 @@
-import {
-  createPublicClient,
-  custom,
-  formatEther,
-  type Address,
-  type Hex,
-  type Log,
-  type PublicClient,
-} from "viem";
+import { createPublicClient, custom, type Address, type Hex, type Log, type PublicClient } from "viem";
 import { polygon } from "viem/chains";
-import {
-  CONTRACT_ABI,
-  CONTRACT_ADDRESS,
-  HISTORY_SCAN_CONFIG,
-  POLYGON_EXPLORER,
-} from "@/config/contract";
+import { CONTRACT_ABI, CONTRACT_ADDRESS, HISTORY_SCAN_CONFIG, transactionLink } from "@/config/contract";
 import type { Eip1193Provider } from "@/lib/eip1193";
+
+export const ACTIVITY_EVENTS = [
+  "RoundStarted", "TicketPurchased", "VrfRequestSent", "RandomnessAccepted", "WinnerSelected",
+  "RoundFinalized", "PrizeClaimed", "BatchPrizesClaimed", "ReferralRegistered",
+  "ReferralCreditGranted", "ReferralCreditsUsed", "TargetPoolUpdated", "PurchasesPauseChanged",
+] as const;
+export type ActivityEventName = (typeof ACTIVITY_EVENTS)[number];
 
 export type ActivityEntry = {
   id: string;
-  buyer: Address;
-  round: bigint;
-  price?: bigint;
+  eventName: ActivityEventName;
   transactionHash: Hex;
   blockNumber: bigint;
   timestamp?: number;
+  roundId?: bigint;
+  account?: Address;
+  quantity?: bigint;
+  amount?: bigint;
+  place?: number;
+  ticketId?: bigint;
   explorerUrl: string;
 };
 
-export type WinnerEntry = {
-  id: string;
-  winner: Address;
-  round: bigint;
-  prize?: bigint;
-  transactionHash: Hex;
-  blockNumber: bigint;
-  timestamp?: number;
-  explorerUrl: string;
-};
-
-type CachedHistory = {
-  latestBlock: string;
-  activity: ActivityEntry[];
-  winners: WinnerEntry[];
-};
+type CachedHistory = { latestBlock: string; activity: ActivityEntry[] };
+type DecodedLog = Log & { eventName?: string; args?: Record<string, unknown> };
 
 export function createHistoryClient(provider: Eip1193Provider): PublicClient {
-  return createPublicClient({
-    chain: polygon,
-    transport: custom(provider),
-  }) as unknown as PublicClient;
+  return createPublicClient({ chain: polygon, transport: custom(provider) }) as unknown as PublicClient;
 }
 
-export function ticketLogToActivity(log: Log & { args?: Record<string, unknown> }): ActivityEntry {
-  const args = log.args || {};
-  const buyer = (args.buyer || args.player || args.account) as Address;
-  const round = BigInt((args.round || args.roundId || 0n) as bigint);
-  const price = args.price || args.value || args.amount;
+function toBigInt(value: unknown): bigint | undefined {
+  return typeof value === "bigint" ? value : undefined;
+}
 
+export function decodedLogToActivity(log: DecodedLog): ActivityEntry | undefined {
+  if (!log.eventName || !ACTIVITY_EVENTS.includes(log.eventName as ActivityEventName) || !log.transactionHash || !log.blockNumber) return undefined;
+  const args = log.args ?? {};
+  const account = (args.buyer ?? args.winner ?? args.player ?? args.referrer ?? args.recipient) as Address | undefined;
   return {
     id: `${log.transactionHash}-${log.logIndex}`,
-    buyer,
-    round,
-    price: typeof price === "bigint" ? price : undefined,
-    transactionHash: log.transactionHash!,
-    blockNumber: log.blockNumber!,
-    explorerUrl: `${POLYGON_EXPLORER}/tx/${log.transactionHash}`,
+    eventName: log.eventName as ActivityEventName,
+    transactionHash: log.transactionHash,
+    blockNumber: log.blockNumber,
+    roundId: toBigInt(args.roundId),
+    account,
+    quantity: toBigInt(args.quantity) ?? toBigInt(args.creditsUsed),
+    amount: toBigInt(args.paid) ?? toBigInt(args.prize) ?? toBigInt(args.amount) ?? toBigInt(args.netPrizePool),
+    place: typeof args.place === "number" ? args.place : undefined,
+    ticketId: toBigInt(args.ticketId),
+    explorerUrl: transactionLink(log.transactionHash),
   };
 }
 
-export function winnerLogToEntry(log: Log & { args?: Record<string, unknown> }): WinnerEntry {
-  const args = log.args || {};
-  const winner = (args.winner || args.player || args.account) as Address;
-  const round = BigInt((args.round || args.roundId || 0n) as bigint);
-  const prize = args.prize || args.amount || args.value;
-
-  return {
-    id: `${log.transactionHash}-${log.logIndex}`,
-    winner,
-    round,
-    prize: typeof prize === "bigint" ? prize : undefined,
-    transactionHash: log.transactionHash!,
-    blockNumber: log.blockNumber!,
-    explorerUrl: `${POLYGON_EXPLORER}/tx/${log.transactionHash}`,
-  };
-}
-
-function safeSessionStorage(): Storage | undefined {
+function storage() {
   if (typeof window === "undefined") return undefined;
+  try { return window.sessionStorage; } catch { return undefined; }
+}
+
+function readCache(): CachedHistory | undefined {
+  const raw = storage()?.getItem(HISTORY_SCAN_CONFIG.sessionKey);
+  if (!raw) return undefined;
   try {
-    return window.sessionStorage;
+    return JSON.parse(raw, (_key, value) => typeof value === "string" && /^\d+n$/.test(value) ? BigInt(value.slice(0, -1)) : value) as CachedHistory;
   } catch {
+    storage()?.removeItem(HISTORY_SCAN_CONFIG.sessionKey);
     return undefined;
   }
 }
 
-function readCachedHistory(): CachedHistory | undefined {
-  const storage = safeSessionStorage();
-  if (!storage) return undefined;
-  const value = storage.getItem(HISTORY_SCAN_CONFIG.sessionKey);
-  if (!value) return undefined;
-  try {
-    return JSON.parse(value, (_key, item) => {
-      if (typeof item === "string" && /^\d+n$/.test(item)) return BigInt(item.slice(0, -1));
-      return item;
-    }) as CachedHistory;
-  } catch {
-    storage.removeItem(HISTORY_SCAN_CONFIG.sessionKey);
-    return undefined;
-  }
+function writeCache(value: CachedHistory) {
+  storage()?.setItem(HISTORY_SCAN_CONFIG.sessionKey, JSON.stringify(value, (_key, item) => typeof item === "bigint" ? `${item}n` : item));
 }
 
-function writeCachedHistory(cache: CachedHistory) {
-  const storage = safeSessionStorage();
-  if (!storage) return;
-  storage.setItem(
-    HISTORY_SCAN_CONFIG.sessionKey,
-    JSON.stringify(cache, (_key, value) =>
-      typeof value === "bigint" ? `${value.toString()}n` : value,
-    ),
-  );
-}
-
-async function addTimestamps<T extends { blockNumber: bigint; timestamp?: number }>(
-  client: PublicClient,
-  rows: T[],
-): Promise<T[]> {
-  const uniqueBlocks = [...new Set(rows.map((row) => row.blockNumber.toString()))];
+async function attachTimestamps(client: PublicClient, activity: ActivityEntry[]) {
+  const blocks = [...new Set(activity.map((entry) => entry.blockNumber.toString()))];
   const timestamps = new Map<string, number>();
-
-  await Promise.all(
-    uniqueBlocks.slice(0, 14).map(async (block) => {
-      const result = await client.getBlock({ blockNumber: BigInt(block) });
-      timestamps.set(block, Number(result.timestamp) * 1000);
-    }),
-  );
-
-  return rows.map((row) => ({
-    ...row,
-    timestamp: timestamps.get(row.blockNumber.toString()),
+  await Promise.all(blocks.slice(0, 20).map(async (value) => {
+    const block = await client.getBlock({ blockNumber: BigInt(value) });
+    timestamps.set(value, Number(block.timestamp) * 1000);
   }));
+  return activity.map((entry) => ({ ...entry, timestamp: timestamps.get(entry.blockNumber.toString()) }));
 }
 
-async function scanEvent<T>({
-  client,
-  eventName,
-  limit,
-  mapper,
-}: {
-  client: PublicClient;
-  eventName: "TicketBought" | "WinnerPicked";
-  limit: number;
-  mapper: (log: Log & { args?: Record<string, unknown> }) => T;
-}): Promise<T[]> {
-  const latest = await client.getBlockNumber();
-  let toBlock = latest;
-  let blockSpan = HISTORY_SCAN_CONFIG.initialBlockSpan;
-  const collected: T[] = [];
+export async function loadContractHistory(provider: Eip1193Provider, force = false, signal?: AbortSignal) {
+  const client = createHistoryClient(provider);
+  const latestBlock = await client.getBlockNumber();
+  const cached = force ? undefined : readCache();
+  if (cached?.latestBlock === latestBlock.toString()) return cached;
 
-  while (
-    toBlock >= HISTORY_SCAN_CONFIG.deploymentBlock &&
-    collected.length < limit &&
-    blockSpan >= HISTORY_SCAN_CONFIG.minBlockSpan
-  ) {
-    const fromBlock =
-      toBlock - blockSpan > HISTORY_SCAN_CONFIG.deploymentBlock
-        ? toBlock - blockSpan
-        : HISTORY_SCAN_CONFIG.deploymentBlock;
-
+  let toBlock = latestBlock;
+  let span = HISTORY_SCAN_CONFIG.initialBlockSpan;
+  const activity: ActivityEntry[] = [];
+  while (toBlock >= HISTORY_SCAN_CONFIG.deploymentBlock && activity.length < HISTORY_SCAN_CONFIG.activityLimit) {
+    if (signal?.aborted) throw new DOMException("History request cancelled", "AbortError");
+    const fromBlock = toBlock - span > HISTORY_SCAN_CONFIG.deploymentBlock ? toBlock - span : HISTORY_SCAN_CONFIG.deploymentBlock;
     try {
-      const logs = await client.getContractEvents({
-        address: CONTRACT_ADDRESS,
-        abi: CONTRACT_ABI,
-        eventName,
-        fromBlock,
-        toBlock,
-      });
-
-      collected.push(
-        ...logs
-          .filter((log) => log.transactionHash && log.blockNumber)
-          .reverse()
-          .map((log) => mapper(log as Log & { args?: Record<string, unknown> })),
-      );
-
+      const logs = await client.getContractEvents({ address: CONTRACT_ADDRESS, abi: CONTRACT_ABI, fromBlock, toBlock });
+      activity.push(...logs.slice().reverse().map((log) => decodedLogToActivity(log as DecodedLog)).filter((entry): entry is ActivityEntry => Boolean(entry)));
       if (fromBlock === HISTORY_SCAN_CONFIG.deploymentBlock) break;
       toBlock = fromBlock - 1n;
     } catch (error) {
-      blockSpan = blockSpan / 2n;
-      if (blockSpan < HISTORY_SCAN_CONFIG.minBlockSpan) throw error;
+      if (signal?.aborted) throw error;
+      span /= 2n;
+      if (span < HISTORY_SCAN_CONFIG.minBlockSpan) throw new Error("RPC_RATE_LIMIT", { cause: error });
     }
   }
 
-  return collected.slice(0, limit);
-}
-
-export async function loadContractHistory(provider: Eip1193Provider, force = false) {
-  const cached = !force ? readCachedHistory() : undefined;
-  const client = createHistoryClient(provider);
-  const latestBlock = await client.getBlockNumber();
-
-  if (cached?.latestBlock === latestBlock.toString()) {
-    return cached;
-  }
-
-  const [activityRaw, winnersRaw] = await Promise.all([
-    scanEvent({
-      client,
-      eventName: "TicketBought",
-      limit: HISTORY_SCAN_CONFIG.purchaseLimit,
-      mapper: ticketLogToActivity,
-    }),
-    scanEvent({
-      client,
-      eventName: "WinnerPicked",
-      limit: HISTORY_SCAN_CONFIG.winnerLimit,
-      mapper: winnerLogToEntry,
-    }),
-  ]);
-
-  const [activity, winners] = await Promise.all([
-    addTimestamps(client, activityRaw),
-    addTimestamps(client, winnersRaw),
-  ]);
-
-  const result = {
-    latestBlock: latestBlock.toString(),
-    activity,
-    winners,
-  };
-  writeCachedHistory(result);
+  const result = { latestBlock: latestBlock.toString(), activity: await attachTimestamps(client, activity.slice(0, HISTORY_SCAN_CONFIG.activityLimit)) };
+  writeCache(result);
   return result;
-}
-
-export function formatLogAmount(value?: bigint) {
-  if (value === undefined) return undefined;
-  return `${Number(formatEther(value)).toLocaleString("en-US", {
-    maximumFractionDigits: 4,
-  })} POL`;
 }
