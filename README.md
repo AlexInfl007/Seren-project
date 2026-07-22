@@ -1,6 +1,14 @@
 # Seren Lottery Chain frontend
 
-Production frontend for the verified Seren Lottery Chain contract on Polygon Mainnet. The application uses Next.js 15, React 18, strict TypeScript, viem, EIP-6963 wallet discovery, optional WalletConnect, Vitest, and ESLint.
+Production frontend for the verified Seren Lottery Chain contract on Polygon Mainnet. The application uses Next.js 15, React 18, strict TypeScript, viem, EIP-6963 wallet discovery, optional WalletConnect, Vitest, and ESLint. The public experience combines server-rendered product content with a wallet-gated on-chain dashboard.
+
+## Public routes and interface architecture
+
+The localized public routes are `/en`, `/ru`, `/es`, `/zh`, `/hi`, `/ar`, `/fr`, and `/pt`; `/` permanently redirects to `/en`. Arabic is rendered with `dir="rtl"`. Each locale has its own title, description, Open Graph/Twitter metadata, FAQ schema, canonical URL and hreflang set in production.
+
+Static product content is rendered by Server Components in `src/components/marketing`. The shared header and footer live in `src/components/layout`. `src/components/lottery/LotteryDashboard.tsx` owns the interactive round, purchase, account, winners, history and claim presentation while contract reads and write preparation remain in hooks and `src/lib`. A shared wallet context prevents duplicate provider sessions between the header and dashboard.
+
+The design system is centralized in `src/app/premium.css` with dark-purple surfaces, warm-gold accents, consistent containers and responsive rules. `next/font` self-hosts Manrope and Cormorant Garamond in the production build, with script-appropriate system fallbacks for Chinese, Hindi and Arabic.
 
 ## Mainnet deployment
 
@@ -75,17 +83,19 @@ npm run build
 
 Use an injected wallet or configure WalletConnect, connect to Polygon Mainnet, and test reads against the verified contract. Test write UX with mocks or a controlled non-mainnet environment; do not submit development transactions to the deployed contract.
 
+After `npm run build`, validate the production bundle with `npm run start`. Responsive before/after evidence is stored under `artifacts/ui-audit`; see `UI_MARKETING_SEO_REPORT.md` for the audit, Lighthouse results and Preview checklist.
+
 ## Environment variables
 
 Copy `.env.example` to `.env.local`:
 
 ```env
 NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID=
-NEXT_PUBLIC_SITE_URL=http://localhost:3000
+NEXT_PUBLIC_SITE_URL=https://your-production-domain.example
 ```
 
-Only these public frontend variables are supported. Do not add RPC secrets or private keys.
+Only these public frontend variables are supported. `NEXT_PUBLIC_SITE_URL` must be the canonical production HTTPS origin, without a path. Do not add RPC secrets or private keys. Vercel supplies `VERCEL_ENV`: Preview/Development are `noindex`, while Production enables canonical URLs, hreflang, robots and sitemap discovery.
 
 ## Vercel
 
-Import the repository into Vercel, set `NEXT_PUBLIC_SITE_URL` to the canonical HTTPS URL, optionally set `NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID`, and use the standard Next.js build command. Preview deployments should be checked on desktop and mobile before promotion. Production deployment is a manual project-owner action.
+Import the repository into Vercel, set `NEXT_PUBLIC_SITE_URL` only to the canonical HTTPS production origin, optionally set `NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID`, and use the standard Next.js build command. Preview deployments should be checked on desktop and mobile before promotion. Production deployment is a manual project-owner action; this implementation does not deploy automatically.

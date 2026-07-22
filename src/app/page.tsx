@@ -1,5 +1,5 @@
-import SerenApp from "@/components/SerenApp";
+import { permanentRedirect } from "next/navigation";
 
 export default function Home() {
-  return <SerenApp />;
+  permanentRedirect("/en");
 }
