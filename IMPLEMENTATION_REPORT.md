@@ -1,5 +1,7 @@
 # Final mainnet contract integration report
 
+> The premium UI, marketing, localization and SEO layer is documented in `UI_MARKETING_SEO_REPORT.md`. This report remains the contract-integration source of truth.
+
 ## Migration source of truth
 
 The frontend now targets the verified Polygon Mainnet lottery at `0x0C59B1c64925425AB307Cc19A92AD176E0709360`, deployed in block `90588221` by transaction `0xfd212926d1cc1923b0f5f747a6c3771a109cc3b6f29572d28eb63f390636f373`. The supplied 150-entry ABI is preserved in full as a viem-compatible typed constant.
