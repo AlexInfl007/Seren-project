@@ -28,7 +28,7 @@ export default function SerenOracle({ locale }: { locale: Locale }) {
     timerRef.current = window.setTimeout(() => {
       setSelection(next);
       setGenerating(false);
-    }, 520);
+    }, 320);
   };
 
   const showOracle = () => {
@@ -94,23 +94,31 @@ export default function SerenOracle({ locale }: { locale: Locale }) {
         <div className="oracle-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) close(); }}>
           <div ref={dialogRef} className="oracle-dialog" role="dialog" aria-modal="true" aria-labelledby="oracle-dialog-title" aria-describedby="oracle-disclaimer">
             <button type="button" className="icon-button oracle-close" onClick={close} aria-label={content.close}><X aria-hidden="true" /></button>
-            <div className={`oracle-lotus ${generating ? "is-reading" : ""}`} aria-hidden="true">
-              <Image src="/assets/logo.png" alt="" width={148} height={148} />
-              <i /><i /><i /><i /><i />
+            <div className="oracle-dialog__header">
+              <div className={`oracle-lotus ${generating ? "is-reading" : ""}`} aria-hidden="true">
+                <Image src="/assets/logo.png" alt="" width={112} height={112} />
+                <i /><i /><i />
+              </div>
+              <div>
+                <span className="eyebrow">Seren Lottery Chain</span>
+                <h2 id="oracle-dialog-title">{generating ? content.generating : content.prediction}</h2>
+              </div>
             </div>
-            <span className="eyebrow">Seren Lottery Chain</span>
-            <h2 id="oracle-dialog-title">{generating ? content.generating : content.prediction}</h2>
             {!generating && selection && (
-              <div className="oracle-card" aria-live="polite">
-                <Image src="/assets/logo.png" alt="" width={48} height={48} />
-                <blockquote>{message}</blockquote>
-                <div><span>{content.luckyNumber}<strong>{selection.luckyNumber}</strong></span><span>{content.symbol}<strong>{symbol}</strong></span></div>
-                <time dateTime={selection.dateKey}>{selection.dateKey}</time>
+              <div className="oracle-result" aria-live="polite">
+                <section className="oracle-prediction">
+                  <Image src="/assets/logo.png" alt="" width={42} height={42} />
+                  <blockquote>{message}</blockquote>
+                </section>
+                <aside className="oracle-share-card" aria-label={content.share}>
+                  <div><span>{content.luckyNumber}<strong>{selection.luckyNumber}</strong></span><span>{content.symbol}<strong>{symbol}</strong></span></div>
+                  <time dateTime={selection.dateKey}>{selection.dateKey}</time>
+                </aside>
               </div>
             )}
             <p id="oracle-disclaimer" className="oracle-disclaimer">{content.disclaimer}</p>
             <div className="oracle-actions">
-              <button type="button" className="button button--outline" onClick={close}>{content.close}</button>
+              <button type="button" className="button button--outline oracle-action-close" onClick={close}>{content.close}</button>
               <button type="button" className="button button--primary" onClick={share} disabled={!selection || generating}>{shared ? <Copy aria-hidden="true" /> : <Share2 aria-hidden="true" />}{shared ? content.shared : content.share}</button>
               {!wallet.account && <button type="button" className="button button--glass" onClick={() => void generate()} disabled={generating}><RefreshCcw aria-hidden="true" />{content.newPrediction}</button>}
             </div>

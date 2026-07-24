@@ -105,6 +105,8 @@ export default function LotteryDashboard({ locale, afterRound, beforeAccount, af
     if (!confirmOpen) return;
     previousFocusRef.current = document.activeElement as HTMLElement | null;
     const modal = modalRef.current;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
     const focusable = modal?.querySelectorAll<HTMLElement>("button:not(:disabled), a[href], input:not(:disabled), select:not(:disabled), [tabindex]:not([tabindex='-1'])");
     focusable?.[0]?.focus();
     const onKeyDown = (event: KeyboardEvent) => {
@@ -121,6 +123,7 @@ export default function LotteryDashboard({ locale, afterRound, beforeAccount, af
     document.addEventListener("keydown", onKeyDown);
     return () => {
       document.removeEventListener("keydown", onKeyDown);
+      document.body.style.overflow = previousOverflow;
       previousFocusRef.current?.focus();
     };
   }, [confirmOpen]);
@@ -141,7 +144,9 @@ export default function LotteryDashboard({ locale, afterRound, beforeAccount, af
     return () => observer.disconnect();
   }, []);
 
-  const clampQuantity = (value: number) => setQuantity(Math.max(1, Math.min(state?.maxTicketsPerPurchase ?? 100, Number.isFinite(value) ? Math.trunc(value) : 1)));
+  const maxQuantity = state?.maxTicketsPerPurchase ?? 100;
+  const quickQuantities = QUICK_QUANTITIES.filter((value) => value <= maxQuantity);
+  const clampQuantity = (value: number) => setQuantity(Math.max(1, Math.min(maxQuantity, Number.isFinite(value) ? Math.trunc(value) : 1)));
   const maxCredits = state ? Number((state.referralCredits < BigInt(quantity) ? state.referralCredits : BigInt(quantity))) : 0;
   const effectiveReferrer = referrer && isAddress(referrer) ? getAddress(referrer) : undefined;
   const referrerEditable = Boolean(state && !state.hasEverPurchased && state.referrer === ZERO_ADDRESS);
@@ -230,9 +235,15 @@ export default function LotteryDashboard({ locale, afterRound, beforeAccount, af
       <aside id="purchase" ref={purchaseCardRef} className="panel purchase-card">
         <div className="panel-title"><Ticket size={20}/><div><h2>{t.purchase.title}</h2><p>{t.purchase.description}</p></div></div>
         {!wallet.account ? <button className="primary-button wide" type="button" onClick={() => window.dispatchEvent(new Event("seren:open-wallet"))}>{t.wallet.connect}</button> : !wallet.isPolygon ? <button className="primary-button wide" type="button" onClick={wallet.switchToPolygon}>{t.wallet.switch}</button> : <>
-          <label className="field-label" htmlFor="ticket-quantity">{t.purchase.quantity}</label><div className="quantity-control"><button type="button" onClick={() => clampQuantity(quantity - 1)} aria-label={`${t.purchase.quantity} −`}>−</button><input id="ticket-quantity" type="number" min="1" max={state?.maxTicketsPerPurchase ?? 100} value={quantity} onChange={(event) => clampQuantity(Number(event.target.value))}/><button type="button" onClick={() => clampQuantity(quantity + 1)} aria-label={`${t.purchase.quantity} +`}>+</button></div><div className="quick-choices">{QUICK_QUANTITIES.map((value) => <button type="button" className={quantity === value ? "active" : ""} key={value} onClick={() => clampQuantity(value)}>{value}</button>)}</div>
-          <label className="field-label" htmlFor="credits">{t.purchase.credits}</label><input id="credits" className="text-input" type="number" min="0" max={maxCredits} value={credits} onChange={(event) => setCredits(Math.max(0, Math.min(maxCredits, Math.trunc(Number(event.target.value) || 0))))}/><small>{t.account.creditHelp} {t.account.credits}: {formatCount(state?.referralCredits)}</small>
-          {referrerEditable ? <><label className="field-label" htmlFor="referrer">{t.purchase.referrer}</label><div className="input-action"><input id="referrer" className="text-input" value={referrer} onChange={(event) => setReferrer(event.target.value.trim())} placeholder="0x…"/><button type="button" onClick={pasteReferrer}>{t.purchase.paste}</button></div><small>{t.purchase.referrerHint}</small>{referrerError && <p className="inline-error">{t.purchase.invalidReferrer}</p>}</> : state && <div className="referrer-fixed"><span>{t.account.referrer}</span><strong>{state.referrer === ZERO_ADDRESS ? t.account.noReferrer : shortenAddress(state.referrer)}</strong><small>{t.purchase.referrerLocked}</small></div>}
+          <label className="field-label" htmlFor="ticket-quantity">{t.purchase.quantity}</label>
+          <div className="quantity-control">
+            <button type="button" disabled={quantity <= 1} onClick={() => clampQuantity(quantity - 1)} aria-label={`${t.purchase.quantity} −`}>−</button>
+            <input id="ticket-quantity" type="number" inputMode="numeric" enterKeyHint="done" min="1" max={maxQuantity} value={quantity} onChange={(event) => clampQuantity(Number(event.target.value))}/>
+            <button type="button" disabled={quantity >= maxQuantity} onClick={() => clampQuantity(quantity + 1)} aria-label={`${t.purchase.quantity} +`}>+</button>
+          </div>
+          <div className="quick-choices" role="group" aria-label={t.purchase.quantity}>{quickQuantities.map((value) => <button type="button" className={quantity === value ? "active" : ""} aria-pressed={quantity === value} key={value} onClick={() => clampQuantity(value)}>{value}</button>)}</div>
+          <label className="field-label" htmlFor="credits">{t.purchase.credits}</label><input id="credits" className="text-input" type="number" inputMode="numeric" enterKeyHint="done" min="0" max={maxCredits} value={credits} onChange={(event) => setCredits(Math.max(0, Math.min(maxCredits, Math.trunc(Number(event.target.value) || 0))))}/><small>{t.account.creditHelp} {t.account.credits}: {formatCount(state?.referralCredits)}</small>
+          {referrerEditable ? <><label className="field-label" htmlFor="referrer">{t.purchase.referrer}</label><div className="input-action"><input id="referrer" className="text-input" type="text" inputMode="text" enterKeyHint="done" autoComplete="off" autoCapitalize="none" autoCorrect="off" spellCheck={false} aria-invalid={Boolean(referrerError)} aria-describedby="referrer-help" value={referrer} onChange={(event) => setReferrer(event.target.value.trim())} onKeyDown={(event) => { if (event.key === "Enter") event.currentTarget.blur(); }} placeholder="0x…"/><button type="button" onClick={pasteReferrer}>{t.purchase.paste}</button></div><small id="referrer-help">{t.purchase.referrerHint}</small>{referrerError && <p className="inline-error">{t.purchase.invalidReferrer}</p>}</> : state && <div className="referrer-fixed"><span>{t.account.referrer}</span><strong>{state.referrer === ZERO_ADDRESS ? t.account.noReferrer : shortenAddress(state.referrer)}</strong><small>{t.purchase.referrerLocked}</small></div>}
           <div className="purchase-summary"><div><span>{t.purchase.fullPrice}</span><strong>{quantity - credits}</strong></div><div><span>{t.purchase.discounted}</span><strong>{credits}</strong></div><div><span>{t.purchase.total}</span><strong>{prepared ? formatPol(prepared.quote.requiredPayment) : t.common.dash}</strong></div></div>
           {intentError === "quantity" && <p className="inline-error">{t.purchase.invalidQuantity}</p>}{intentError === "credits" && <p className="inline-error">{t.purchase.invalidCredits}</p>}
           <button className="buy-button wide" type="button" disabled={!state || state.round.status !== RoundStatus.OPEN || state.purchasesPaused || Boolean(intentError) || Boolean(referrerError) || pending} onClick={preparePurchase}>{tx.status === "quoting" ? t.purchase.prepare : t.purchase.buy}</button>
@@ -273,6 +284,25 @@ export default function LotteryDashboard({ locale, afterRound, beforeAccount, af
 
     {state && state.round.status === RoundStatus.OPEN && !state.purchasesPaused && !purchaseVisible && !footerVisible && <div className="mobile-buy-bar"><span>{formatPol(state.round.ticketPrice)}</span><button type="button" onClick={() => document.getElementById("purchase")?.scrollIntoView({ behavior: "smooth", block: "center" })}>{experience.mobile.buy}</button></div>}
 
-    {confirmOpen && prepared && <div className="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="confirm-title"><div className="modal" ref={modalRef}><button type="button" className="icon-button modal-close" onClick={() => setConfirmOpen(false)} aria-label={t.purchase.cancel}><X/></button><Ticket size={32}/><h2 id="confirm-title">{t.purchase.confirmTitle}</h2><p>{t.purchase.confirmBody}</p><dl className="confirm-list"><div><dt>{t.round.round}</dt><dd>{prepared.roundId.toString()}</dd></div><div><dt>{t.purchase.quantity}</dt><dd>{prepared.quantity}</dd></div><div><dt>{t.purchase.discounted}</dt><dd>{prepared.creditsToUse}</dd></div><div><dt>{t.purchase.total}</dt><dd>{formatPol(prepared.quote.requiredPayment)}</dd></div><div><dt>{t.purchase.referrer}</dt><dd>{shortenAddress(prepared.proposedReferrer)}</dd></div><div><dt>{t.purchase.contract}</dt><dd>{shortenAddress(CONTRACT_ADDRESS)}</dd></div></dl><p className="inline-warning">{t.purchase.risk} {t.purchase.gas}</p><div className="modal-actions"><button type="button" className="outline-button" onClick={() => setConfirmOpen(false)}>{t.purchase.cancel}</button><button type="button" className="primary-button" disabled={pending} onClick={buyTickets}>{t.purchase.continue}</button></div></div></div>}
+    {confirmOpen && prepared && <div className="modal-backdrop purchase-dialog-backdrop" role="dialog" aria-modal="true" aria-labelledby="confirm-title" onMouseDown={(event) => { if (event.target === event.currentTarget) setConfirmOpen(false); }}>
+      <div className="modal purchase-dialog" ref={modalRef}>
+        <button type="button" className="icon-button modal-close" onClick={() => setConfirmOpen(false)} aria-label={t.purchase.cancel}><X aria-hidden="true"/></button>
+        <header className="purchase-dialog__header"><Ticket aria-hidden="true"/><div><h2 id="confirm-title">{t.purchase.confirmTitle}</h2><p>{t.purchase.confirmBody}</p></div></header>
+        <div className="purchase-dialog__body">
+          <dl className="confirm-list">
+            <div><dt>{t.round.round}</dt><dd>{prepared.roundId.toString()}</dd></div>
+            <div><dt>{t.purchase.quantity}</dt><dd>{prepared.quantity}</dd></div>
+            <div><dt>{t.purchase.discounted}</dt><dd>{prepared.creditsToUse}</dd></div>
+            <div><dt>{t.purchase.referrer}</dt><dd>{shortenAddress(prepared.proposedReferrer)}</dd></div>
+            <div><dt>{t.purchase.contract}</dt><dd>{shortenAddress(CONTRACT_ADDRESS)}</dd></div>
+          </dl>
+          <p className="inline-warning">{t.purchase.risk} {t.purchase.gas}</p>
+        </div>
+        <footer className="purchase-dialog__footer">
+          <div className="purchase-dialog__total"><span>{t.purchase.total}</span><strong>{formatPol(prepared.quote.requiredPayment)}</strong></div>
+          <div className="modal-actions"><button type="button" className="outline-button" onClick={() => setConfirmOpen(false)}>{t.purchase.cancel}</button><button type="button" className="primary-button" disabled={pending} onClick={buyTickets}>{t.purchase.continue}</button></div>
+        </footer>
+      </div>
+    </div>}
   </div>;
 }

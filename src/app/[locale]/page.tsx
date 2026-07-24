@@ -30,22 +30,31 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const content = siteContent[candidate];
   const production = isProductionSeo();
   const url = localeUrl(candidate);
+  const title = content.metadata.title.includes("Seren Lottery Chain")
+    ? content.metadata.title
+    : `Seren Lottery Chain | ${content.metadata.title}`;
+  const socialImage = {
+    url: "/assets/hero-seren-desktop.png",
+    width: 1983,
+    height: 793,
+    alt: `Seren Lottery Chain — ${content.hero.title}`,
+  };
   return {
     metadataBase: new URL(getCanonicalOrigin()),
-    title: content.metadata.title,
+    title,
     description: content.metadata.description,
     robots: production ? { index: true, follow: true } : { index: false, follow: false, nocache: true },
     alternates: production ? { canonical: url, languages: languageAlternates() } : undefined,
     openGraph: {
-      title: content.metadata.title,
+      title,
       description: content.metadata.description,
       type: "website",
       siteName: "Seren Lottery Chain",
       url: production ? url : undefined,
       locale: candidate === "zh" ? "zh_CN" : `${candidate}_${candidate.toUpperCase()}`,
-      images: [{ url: "/og-card.png", width: 1200, height: 630, alt: "Seren Lottery Chain" }],
+      images: [socialImage],
     },
-    twitter: { card: "summary_large_image", title: content.metadata.title, description: content.metadata.description, images: ["/og-card.png"] },
+    twitter: { card: "summary_large_image", title, description: content.metadata.description, images: [socialImage.url] },
   };
 }
 

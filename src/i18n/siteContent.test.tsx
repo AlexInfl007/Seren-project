@@ -15,6 +15,9 @@ vi.mock("next/navigation", () => ({
 
 vi.mock("next/image", () => ({
   default: () => <span data-testid="next-image" />,
+  getImageProps: ({ src, alt, sizes }: { src: string; alt: string; sizes: string }) => ({
+    props: { src, srcSet: `${src} 1x`, sizes, alt },
+  }),
 }));
 
 afterEach(() => {
@@ -44,6 +47,9 @@ describe("localized marketing content", () => {
     const headings = container.querySelectorAll("h1");
     expect(headings).toHaveLength(1);
     expect(headings[0]).not.toHaveClass("sr-only");
+    expect(headings[0]).toHaveTextContent("Seren Lottery Chain");
+    expect(container.querySelector(".hero-slogan")).toHaveTextContent(siteContent.en.hero.title);
+    expect(container.querySelector("source[media='(max-width: 680px)']")).toHaveAttribute("srcset", expect.stringContaining("hero-seren-mobile.png"));
     expect(screen.getByRole("link", { name: siteContent.en.hero.primary })).toHaveAttribute("href", "/en#lottery");
     expect(screen.getByRole("link", { name: siteContent.en.hero.secondary })).toHaveAttribute("href", CONTRACT_LINK);
     expect(CONTRACT_LINK).toContain(CONTRACT_ADDRESS);

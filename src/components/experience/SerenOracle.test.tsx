@@ -20,6 +20,8 @@ describe("SerenOracle", () => {
     await act(async () => vi.advanceTimersByTime(600));
     expect(screen.getByRole("dialog")).toBeInTheDocument();
     expect(screen.getByText("Your prediction")).toBeInTheDocument();
+    expect(document.querySelector(".oracle-prediction")).toBeInTheDocument();
+    expect(document.querySelector(".oracle-share-card")).toBeInTheDocument();
     expect(request).not.toHaveBeenCalled();
     for (const method of ["eth_sendTransaction", "personal_sign", "eth_sign", "eth_signTypedData"]) {
       expect(request).not.toHaveBeenCalledWith(expect.objectContaining({ method }));
