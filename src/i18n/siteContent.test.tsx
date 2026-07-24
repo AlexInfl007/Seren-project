@@ -8,6 +8,8 @@ import { CONTRACT_ADDRESS, CONTRACT_LINK } from "@/config/contract";
 import { localeDirection, locales } from "@/i18n/locales";
 import { siteContent } from "@/i18n/siteContent";
 
+const originalUserAgent = window.navigator.userAgent;
+
 vi.mock("next/navigation", () => ({
   usePathname: () => "/en",
   useRouter: () => ({ push: vi.fn() }),
@@ -22,6 +24,8 @@ vi.mock("next/image", () => ({
 
 afterEach(() => {
   document.body.className = "";
+  Object.defineProperty(window.navigator, "userAgent", { configurable: true, value: originalUserAgent });
+  Object.defineProperty(window, "ethereum", { configurable: true, value: undefined });
 });
 
 describe("localized marketing content", () => {
@@ -81,6 +85,33 @@ describe("header interactions", () => {
     expect(walletButton).toHaveAttribute("aria-expanded", "false");
   });
 
+  it("connects directly through an injected wallet from a mobile browser", async () => {
+    const requests: string[] = [];
+    const provider = {
+      isMetaMask: true,
+      request: vi.fn(async ({ method }: { method: string }) => {
+        requests.push(method);
+        if (method === "eth_requestAccounts" || method === "eth_accounts") return ["0x1111111111111111111111111111111111111111"];
+        if (method === "eth_chainId") return "0x89";
+        throw new Error(`Unexpected method ${method}`);
+      }),
+      on: vi.fn(),
+      removeListener: vi.fn(),
+    };
+    Object.defineProperty(window.navigator, "userAgent", {
+      configurable: true,
+      value: "Mozilla/5.0 (iPhone; CPU iPhone OS 18_5 like Mac OS X)",
+    });
+    Object.defineProperty(window, "ethereum", { configurable: true, value: provider });
+
+    render(<WalletProvider><Header locale="en" content={siteContent.en} /></WalletProvider>);
+    fireEvent.click(screen.getByRole("button", { name: /Connect wallet/i }));
+
+    await waitFor(() => expect(screen.getByRole("button", { name: /0x1111/i })).toBeInTheDocument());
+    expect(requests).toContain("eth_requestAccounts");
+    expect(screen.queryByText("Choose a wallet")).not.toBeInTheDocument();
+  });
+
   it("shows the wrong-network action for a mocked connected wallet and requests Polygon", async () => {
     const requests: string[] = [];
     const provider = {
@@ -102,6 +133,5 @@ describe("header interactions", () => {
     await waitFor(() => expect(screen.getByRole("button", { name: /0x1111/i })).toBeInTheDocument());
     fireEvent.click(screen.getByRole("button", { name: /Switch to Polygon/i }));
     await waitFor(() => expect(requests).toContain("wallet_switchEthereumChain"));
-    Object.defineProperty(window, "ethereum", { configurable: true, value: undefined });
   });
 });
