@@ -1,81 +1,53 @@
-# Implementation Report
+# Final mainnet contract integration report
 
-## 1. Summary
+> The premium UI, marketing, localization and SEO layer is documented in `UI_MARKETING_SEO_REPORT.md`. This report remains the contract-integration source of truth.
 
-Production-oriented, responsive, multilingual Web3 interface with wallet-gated contract reads, event history, safe ticket purchase, explicit uncertainty states, and no fabricated blockchain metrics.
+## Migration source of truth
 
-## 2. Repository and branch
+The frontend now targets the verified Polygon Mainnet lottery at `0x0C59B1c64925425AB307Cc19A92AD176E0709360`, deployed in block `90588221` by transaction `0xfd212926d1cc1923b0f5f747a6c3771a109cc3b6f29572d28eb63f390636f373`. The supplied 150-entry ABI is preserved in full as a viem-compatible typed constant.
 
-Target: `AlexInfl007/Seren-project`. Delivery branch and final SHA are recorded at publication time.
+## Problems found during the audit
 
-## 3. Visual elements reused as reference
+The previous integration was built around a different one-ticket contract model. It had a different deployment address and block, a handwritten partial ABI, a zero-argument single-ticket purchase, legacy round/availability getters, two legacy ticket-limit getters, four obsolete activity events, locally inferred ticket-price safety checks, and copy that described one winner and one transaction per ticket. The dashboard did not support quotes, referral credits, multi-ticket purchases, 10 result places, paginated winning rounds, claims, VRF lifecycle statuses, or on-chain admin authorization.
 
-Premium dark violet/gold palette, luminous atmospheric background, compact glass cards, rounded gold calls to action, hero composition, typography hierarchy, and responsive card/table treatment. No production data or Web3 assumptions were copied from the reference.
+## Implemented architecture
 
-## 4. Confirmed contract facts
+- Centralized checksummed deployment metadata, enum mappings, limits, explorer links, and bounded history settings.
+- Complete ABI integration without invented signatures.
+- Wallet-only Polygon reads with locked disconnected and wrong-network states.
+- Round status mapper for `NONE`, `OPEN`, `RANDOMNESS_REQUESTED`, `RANDOMNESS_READY`, and `FINALIZED`.
+- Bigint-safe round values, informational target progress, timestamps, request ID, and VRF snapshot.
+- Purchase selector for 1–100 tickets, quick quantities, referral credits, optional first-purchase referrer, exact quote, repeated quote, simulation, wallet write, receipt validation, and stale-context rejection.
+- Personal account with POL balance, active-round tickets, referral state, total claimable, paginated winning rounds, places won, total/unclaimed prize, single claim, and capped batch claim.
+- Exact 10-place results from `getRoundResults`, including duplicate winner addresses when one wallet owns multiple winning tickets.
+- Adaptive, cancellable new-event history beginning at the final deployment block and cached under a contract-specific v2 key.
+- Public transparency section with verified contract and VRF information.
+- On-chain-gated `/admin` route with only the approved lifecycle operations.
+- Updated English, Russian, Spanish, Simplified Chinese, Hindi, Arabic (RTL), French, and Portuguese UI copy.
+- Responsive controls, visible focus, reduced-motion support, loading/empty/error states, and no fabricated disconnected data.
 
-PolygonScan verified source and ABI (checked 2026-07-10) confirm a non-proxy contract at `0xf90169AD413429af4AE0a3B8962648d4a3289011`, `buyTicket()` payable with no arguments, a 30 ether ticket constant, one appended ticket per call, a 10% fee constant, configurable ticket limits, VRF coordinator invocation, and the implemented events.
+## Safety properties
 
-## 5. Unconfirmed project claims
+The exact transaction payment comes only from the most recent `quotePurchase.requiredPayment`. Writes are never sent after a failed simulation, duplicate submission is disabled while pending, account/network context is re-read before writes, claims default to the connected account, receipt success is mandatory, and decoded custom errors are mapped to user-facing messages with optional technical details.
 
-The published 1,000,000 POL target is not encoded as a target constant in the verified contract. It is not used for live progress. Current state and historical rows are never shown until obtained from the connected wallet provider.
+No private key, seed phrase, fallback RPC, server-side chain read, PolygonScan API key, raw transaction construction, automatic transaction, unrestricted public admin control, ownership operation, coordinator operation, recovery operation, fee withdrawal, or mainnet write test was added.
 
-## 6. Verified ABI source
+## Verification
 
-PolygonScan verified Code/ABI tab, checked 2026-07-10. The app uses a minimal verified fragment.
+Run the required commands and the source audits before merging:
 
-## 7. Purchase method
+```bash
+npm install
+npm run typecheck
+npm run lint
+npm run test
+npm run build
+```
 
-`buyTicket()`; payable; zero arguments; exact price read from `ticketPrice()`/`TICKET_PRICE()`; simulation required before `writeContract`; one confirmation required before success.
+Also run repository-wide safety searches for the retired deployment address, obsolete event names, removed retry controls, and removed legacy getter names; all searches must return no matches in production code or documentation.
 
-## 8. Read methods implemented
+Browser verification must cover desktop and mobile, disconnected and wrong-network states, wallet selection, layout overflow, console/hydration errors, and disabled writes without a valid quote/simulation.
 
-`prizePool`, `round`, `ticketsCount`, `ticketsOf`, `ticketPrice`, `TICKET_PRICE`, `open`, `emergencyActive`, `maxTicketsPerRound`, `maxTicketsPerAddress`.
+## Known constraints
 
-## 9. Events implemented
-
-`TicketBought`, `WinnerRequested`, `WinnerPicked`, `RoundReset`; the user-facing history uses purchase and winner logs.
-
-## 10. Wallet connection behavior
-
-EIP-6963/injected providers and optional WalletConnect; explicit connect; Polygon validation/switch; account and chain listeners; manual disconnect; no silent chain reads.
-
-## 11. Wallet-only RPC architecture
-
-All viem public clients use `custom(connectedProvider)`. No HTTP RPC URL is bundled. Event scanning is bounded, adaptive, manual-refreshable, and session-cached.
-
-## 12. Languages implemented
-
-English, Russian, Spanish, Simplified Chinese, Hindi, Arabic, French, Portuguese.
-
-## 13. Pages and sections created
-
-Responsive landing experience with navigation, hero, wallet controls, live draw state, purchase card, recent activity, past winners, how-it-works, transparency, risk, FAQ, footer, confirmation dialog, transaction state, and entertainment-only lucky message.
-
-## 14. Security protections
-
-Central verified adapter, strict chain/address/price checks, ABI-only calldata, simulation, explicit confirmation, duplicate-submit lock, normalized reverts, receipt wait, state clearing, environment isolation, and security headers.
-
-## 15. Tests added
-
-Formatting, contract adapter validation, data gating, event mapping/scanning fallback, transaction simulation failure, and entertainment prediction persistence.
-
-## 16. Commands executed
-
-`npm run typecheck`, `npm run lint`, `npm run test`, `npm run build`, plus source scans for countdowns, mock data, raw transactions, public RPCs, and secrets.
-
-## 17. Build result
-
-Successful. Typecheck and lint passed, all 12 tests passed across 6 files, and the Next.js production build generated the application, robots, and sitemap routes. Desktop and mobile browser checks found no horizontal overflow or console warnings/errors.
-
-## 18. Known limitations
-
-Wallet RPC log-range restrictions can make history unavailable. WalletConnect needs a project ID. No countdown or unverified target-pool progress is shown.
-
-## 19. Files created or changed
-
-See the final Git commit for the authoritative list.
-
-## 20. Final commit SHA
-
-Recorded at publication time.
+The wallet's RPC controls log availability and rate limits. WalletConnect is present only when its public project ID is configured. No Chainlink subscription balance is queried. A production deployment is intentionally not automatic and requires project-owner approval.

@@ -3,6 +3,8 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
+  // Keep locale metadata in <head> for crawlers, audits and link unfurlers.
+  htmlLimitedBots: /.*/,
   async headers() {
     return [{
       source: "/(.*)",

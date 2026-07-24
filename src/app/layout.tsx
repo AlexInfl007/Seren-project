@@ -1,23 +1,25 @@
 import type { Metadata, Viewport } from "next";
+import { Cormorant_Garamond, Manrope } from "next/font/google";
+import { headers } from "next/headers";
+import { isLocale, localeDirection } from "@/i18n/locales";
 import "./globals.css";
+import "./premium.css";
+
+const displayFont = Cormorant_Garamond({
+  variable: "--font-display",
+  subsets: ["latin", "cyrillic"],
+  weight: ["500", "600", "700"],
+  display: "swap",
+});
+
+const sansFont = Manrope({
+  variable: "--font-sans",
+  subsets: ["latin", "cyrillic"],
+  display: "swap",
+});
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://seren-project.vercel.app"),
   title: { default: "Seren Lottery Chain", template: "%s | Seren Lottery Chain" },
-  description: "Transparent Polygon lottery interface with wallet-gated on-chain data.",
-  alternates: { canonical: "/" },
-  openGraph: {
-    title: "Seren Lottery Chain",
-    description: "A wallet-gated interface for the verified Seren lottery contract on Polygon.",
-    type: "website",
-    locale: "en_US",
-    siteName: "Seren Lottery Chain",
-  },
-  twitter: {
-    card: "summary",
-    title: "Seren Lottery Chain",
-    description: "A wallet-gated interface for the verified Seren lottery contract on Polygon.",
-  },
   icons: {
     icon: "/favicon.png",
   },
@@ -29,9 +31,12 @@ export const viewport: Viewport = {
   themeColor: "#0C0B18",
 };
 
-export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+  const requestHeaders = await headers();
+  const candidate = requestHeaders.get("x-seren-locale") || "en";
+  const locale = isLocale(candidate) ? candidate : "en";
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang={locale} dir={localeDirection(locale)} data-scroll-behavior="smooth" suppressHydrationWarning className={`${displayFont.variable} ${sansFont.variable}`}>
       <body>{children}</body>
     </html>
   );

@@ -1,49 +1,40 @@
-import { describe, expect, it } from "vitest";
-import { getSessionPrediction, pickPredictionId } from "@/lib/prediction";
+import { describe, expect, it, vi } from "vitest";
+import {
+  PREDICTION_COMBINATION_COUNT,
+  createDailyPrediction,
+  createRandomPrediction,
+  utcDateKey,
+} from "@/lib/prediction";
 
-class MemoryStorage implements Storage {
-  private values = new Map<string, string>();
-  get length() {
-    return this.values.size;
-  }
-  clear() {
-    this.values.clear();
-  }
-  getItem(key: string) {
-    return this.values.get(key) || null;
-  }
-  key(index: number) {
-    return [...this.values.keys()][index] || null;
-  }
-  removeItem(key: string) {
-    this.values.delete(key);
-  }
-  setItem(key: string, value: string) {
-    this.values.set(key, value);
-  }
-}
-
-describe("prediction session logic", () => {
-  it("uses crypto-style randomness to choose a stable id", () => {
-    const random = (array: Uint32Array) => {
-      array[0] = 3;
+describe("Seren Oracle selection", () => {
+  it("uses crypto-style randomness without a wallet", () => {
+    const random = vi.fn((array: Uint32Array) => {
+      array.set([13, 7, 123]);
       return array;
-    };
-    expect(pickPredictionId(random)).toBe("new-connection");
+    });
+    expect(createRandomPrediction(new Date("2026-07-23T12:00:00Z"), random)).toEqual({
+      messageIndex: 3,
+      symbolIndex: 2,
+      luckyNumber: 25,
+      dateKey: "2026-07-23",
+    });
+    expect(random).toHaveBeenCalledOnce();
   });
 
-  it("stores one prediction per browser session", () => {
-    const storage = new MemoryStorage();
-    const firstRandom = (array: Uint32Array) => {
-      array[0] = 4;
-      return array;
-    };
-    const secondRandom = (array: Uint32Array) => {
-      array[0] = 7;
-      return array;
-    };
+  it("returns the same local result for the same wallet and UTC date", async () => {
+    const first = await createDailyPrediction("0x0000000000000000000000000000000000000001", new Date("2026-07-23T01:00:00Z"));
+    const second = await createDailyPrediction("0x0000000000000000000000000000000000000001", new Date("2026-07-23T22:00:00Z"));
+    expect(second).toEqual(first);
+  });
 
-    expect(getSessionPrediction(storage, firstRandom)).toBe("small-steps");
-    expect(getSessionPrediction(storage, secondRandom)).toBe("small-steps");
+  it("changes the deterministic seed on another UTC date", async () => {
+    const first = await createDailyPrediction("0x0000000000000000000000000000000000000001", new Date("2026-07-23T23:59:59Z"));
+    const next = await createDailyPrediction("0x0000000000000000000000000000000000000001", new Date("2026-07-24T00:00:00Z"));
+    expect(next).not.toEqual(first);
+    expect(utcDateKey(new Date("2026-07-24T00:00:00Z"))).toBe("2026-07-24");
+  });
+
+  it("supports at least fifty localized message and symbol combinations", () => {
+    expect(PREDICTION_COMBINATION_COUNT).toBeGreaterThanOrEqual(50);
   });
 });
