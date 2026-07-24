@@ -29,6 +29,9 @@ export type ActivityEntry = {
 
 type CachedHistory = { latestBlock: string; activity: ActivityEntry[] };
 type DecodedLog = Log & { eventName?: string; args?: Record<string, unknown> };
+const RPC_RETRY_LIMIT = 2;
+const RPC_RETRY_DELAY_MS = 180;
+const TIMESTAMP_CONCURRENCY = 4;
 
 export function createHistoryClient(provider: Eip1193Provider): PublicClient {
   return createPublicClient({ chain: polygon, transport: custom(provider) }) as unknown as PublicClient;
@@ -79,41 +82,93 @@ function writeCache(value: CachedHistory) {
   storage()?.setItem(HISTORY_SCAN_CONFIG.sessionKey, JSON.stringify(value, (_key, item) => typeof item === "bigint" ? `${item}n` : item));
 }
 
-async function attachTimestamps(client: PublicClient, activity: ActivityEntry[]) {
+function isRangeLimited(error: unknown) {
+  const message = error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();
+  return message.includes("block range")
+    || message.includes("range too large")
+    || message.includes("too many blocks")
+    || message.includes("more than") && message.includes("results");
+}
+
+async function retryRpc<T>(operation: () => Promise<T>, signal?: AbortSignal) {
+  let failure: unknown;
+  for (let attempt = 0; attempt <= RPC_RETRY_LIMIT; attempt += 1) {
+    if (signal?.aborted) throw new DOMException("History request cancelled", "AbortError");
+    try {
+      return await operation();
+    } catch (error) {
+      failure = error;
+      if (attempt === RPC_RETRY_LIMIT) break;
+      await new Promise((resolve) => setTimeout(resolve, RPC_RETRY_DELAY_MS * (attempt + 1)));
+    }
+  }
+  throw failure;
+}
+
+export async function attachTimestamps(client: PublicClient, activity: ActivityEntry[], signal?: AbortSignal) {
   const blocks = [...new Set(activity.map((entry) => entry.blockNumber.toString()))];
   const timestamps = new Map<string, number>();
-  await Promise.all(blocks.slice(0, 20).map(async (value) => {
-    const block = await client.getBlock({ blockNumber: BigInt(value) });
-    timestamps.set(value, Number(block.timestamp) * 1000);
-  }));
+  for (let index = 0; index < blocks.length; index += TIMESTAMP_CONCURRENCY) {
+    const batch = blocks.slice(index, index + TIMESTAMP_CONCURRENCY);
+    await Promise.all(batch.map(async (value) => {
+      try {
+        const block = await retryRpc(() => client.getBlock({ blockNumber: BigInt(value) }), signal);
+        timestamps.set(value, Number(block.timestamp) * 1000);
+      } catch (error) {
+        if ((error as Error).name === "AbortError") throw error;
+        // Timestamps are optional metadata; verified events must survive desktop RPC throttling.
+      }
+    }));
+  }
   return activity.map((entry) => ({ ...entry, timestamp: timestamps.get(entry.blockNumber.toString()) }));
 }
 
-export async function loadContractHistory(provider: Eip1193Provider, force = false, signal?: AbortSignal) {
-  const client = createHistoryClient(provider);
-  const latestBlock = await client.getBlockNumber();
-  const cached = force ? undefined : readCache();
-  if (cached?.latestBlock === latestBlock.toString()) return cached;
+export async function loadContractHistoryFromClient(client: PublicClient, force = false, signal?: AbortSignal) {
+  const cached = readCache();
 
-  let toBlock = latestBlock;
-  let span = HISTORY_SCAN_CONFIG.initialBlockSpan;
-  const activity: ActivityEntry[] = [];
-  while (toBlock >= HISTORY_SCAN_CONFIG.deploymentBlock && activity.length < HISTORY_SCAN_CONFIG.activityLimit) {
-    if (signal?.aborted) throw new DOMException("History request cancelled", "AbortError");
-    const fromBlock = toBlock - span > HISTORY_SCAN_CONFIG.deploymentBlock ? toBlock - span : HISTORY_SCAN_CONFIG.deploymentBlock;
-    try {
-      const logs = await client.getContractEvents({ address: CONTRACT_ADDRESS, abi: CONTRACT_ABI, fromBlock, toBlock });
-      activity.push(...logs.slice().reverse().map((log) => decodedLogToActivity(log as DecodedLog)).filter((entry): entry is ActivityEntry => Boolean(entry)));
-      if (fromBlock === HISTORY_SCAN_CONFIG.deploymentBlock) break;
-      toBlock = fromBlock - 1n;
-    } catch (error) {
-      if (signal?.aborted) throw error;
-      span /= 2n;
-      if (span < HISTORY_SCAN_CONFIG.minBlockSpan) throw new Error("RPC_RATE_LIMIT", { cause: error });
+  try {
+    const latestBlock = await retryRpc(() => client.getBlockNumber(), signal);
+    if (!force && cached?.latestBlock === latestBlock.toString()) return cached;
+    let toBlock = latestBlock;
+    let span = HISTORY_SCAN_CONFIG.initialBlockSpan;
+    let transientRetries = 0;
+    const activity: ActivityEntry[] = [];
+    while (toBlock >= HISTORY_SCAN_CONFIG.deploymentBlock && activity.length < HISTORY_SCAN_CONFIG.activityLimit) {
+      if (signal?.aborted) throw new DOMException("History request cancelled", "AbortError");
+      const fromBlock = toBlock - span > HISTORY_SCAN_CONFIG.deploymentBlock ? toBlock - span : HISTORY_SCAN_CONFIG.deploymentBlock;
+      try {
+        const logs = await client.getContractEvents({ address: CONTRACT_ADDRESS, abi: CONTRACT_ABI, fromBlock, toBlock });
+        activity.push(...logs.slice().reverse().map((log) => decodedLogToActivity(log as DecodedLog)).filter((entry): entry is ActivityEntry => Boolean(entry)));
+        transientRetries = 0;
+        if (fromBlock === HISTORY_SCAN_CONFIG.deploymentBlock) break;
+        toBlock = fromBlock - 1n;
+      } catch (error) {
+        if (signal?.aborted) throw error;
+        if (activity.length > 0) break;
+        if (!isRangeLimited(error) && transientRetries < RPC_RETRY_LIMIT) {
+          transientRetries += 1;
+          await new Promise((resolve) => setTimeout(resolve, RPC_RETRY_DELAY_MS * transientRetries));
+          continue;
+        }
+        transientRetries = 0;
+        span /= 2n;
+        if (span < HISTORY_SCAN_CONFIG.minBlockSpan) throw new Error("RPC_RATE_LIMIT", { cause: error });
+      }
     }
-  }
 
-  const result = { latestBlock: latestBlock.toString(), activity: await attachTimestamps(client, activity.slice(0, HISTORY_SCAN_CONFIG.activityLimit)) };
-  writeCache(result);
-  return result;
+    const result = {
+      latestBlock: latestBlock.toString(),
+      activity: await attachTimestamps(client, activity.slice(0, HISTORY_SCAN_CONFIG.activityLimit), signal),
+    };
+    if (result.activity.length === 0 && cached?.activity.length) return cached;
+    writeCache(result);
+    return result;
+  } catch (error) {
+    if ((error as Error).name !== "AbortError" && cached?.activity.length) return cached;
+    throw error;
+  }
+}
+
+export async function loadContractHistory(provider: Eip1193Provider, force = false, signal?: AbortSignal) {
+  return loadContractHistoryFromClient(createHistoryClient(provider), force, signal);
 }
