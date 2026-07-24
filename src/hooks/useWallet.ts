@@ -51,6 +51,14 @@ function discoverInjectedProviders() {
   }));
 }
 
+export function isMobileWalletBrowser(userAgent = typeof navigator === "undefined" ? "" : navigator.userAgent) {
+  return /Android|iPhone|iPad|iPod/i.test(userAgent);
+}
+
+export function metaMaskDappLink(location: Pick<Location, "host" | "pathname" | "search">) {
+  return `https://metamask.app.link/dapp/${location.host}${location.pathname}${location.search}`;
+}
+
 export function useWallet() {
   const [state, setState] = useState<WalletState>({
     providers: [],
@@ -193,6 +201,42 @@ export function useWallet() {
     }
   }, []);
 
+  const openMetaMaskMobile = useCallback(() => {
+    window.location.assign(metaMaskDappLink(window.location));
+  }, []);
+
+  const connectPreferred = useCallback(async () => {
+    window.dispatchEvent(new Event("eip6963:requestProvider"));
+    const available = uniqueProviders([...state.providers, ...discoverInjectedProviders()]);
+    const metaMask = available.find(
+      (provider) => provider.provider.isMetaMask
+        || provider.name.toLowerCase().includes("metamask")
+        || provider.rdns?.toLowerCase().includes("metamask"),
+    );
+
+    if (metaMask) {
+      await connectWithProvider(metaMask);
+      return;
+    }
+
+    if (available[0]) {
+      await connectWithProvider(available[0]);
+      return;
+    }
+
+    if (process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID) {
+      await connectWalletConnect();
+      return;
+    }
+
+    if (isMobileWalletBrowser()) {
+      openMetaMaskMobile();
+      return;
+    }
+
+    setState((current) => ({ ...current, error: { key: "walletUnavailable" } }));
+  }, [connectWalletConnect, connectWithProvider, openMetaMaskMobile, state.providers]);
+
   const switchToPolygon = useCallback(async () => {
     if (!state.provider) return;
     try {
@@ -258,8 +302,10 @@ export function useWallet() {
     ...state,
     walletClient,
     isPolygon: state.chainId === POLYGON_CHAIN_ID,
+    isMobile: isMobileWalletBrowser(),
     connectWithProvider,
     connectWalletConnect,
+    connectPreferred,
     switchToPolygon,
     copyAddress,
     disconnect,

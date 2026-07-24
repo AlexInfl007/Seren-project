@@ -382,8 +382,9 @@ h1, .section-heading h2, .final-cta h2 { font-family: var(--font-display), Georg
   .language-control select { width: 52px; max-width: 52px; padding-inline: 8px 2px; }
   .header-wallet { width: 46px; padding: 0; }
   .header-wallet span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); }
-  .premium-hero { min-height: calc(100dvh - 68px); max-height: none; align-items: start; }
-  .hero-art, [dir="rtl"] .hero-art { object-position: center; }
+  .premium-hero { min-height: calc(100svh - 68px); max-height: none; align-items: start; }
+  .hero-picture { contain: paint; }
+  .hero-art, [dir="rtl"] .hero-art { object-position: center; backface-visibility: hidden; transform: translateZ(0); }
   .hero-overlay { background: linear-gradient(180deg, rgba(6,4,14,.96) 0%, rgba(7,4,17,.72) 49%, rgba(7,4,17,.2) 78%, rgba(7,4,17,.78) 100%); }
   [dir="rtl"] .hero-overlay { background: linear-gradient(180deg, rgba(6,4,14,.96) 0%, rgba(7,4,17,.72) 49%, rgba(7,4,17,.2) 78%, rgba(7,4,17,.78) 100%); }
   .hero-content { padding-block: 44px 34px; }

@@ -71,6 +71,16 @@ export default function Header({ locale, content }: { locale: Locale; content: S
     router.push(`/${next}${suffix}${window.location.hash}`);
   };
 
+  const handleWalletButton = () => {
+    setMobileOpen(false);
+    if (!wallet.account && wallet.isMobile) {
+      setWalletOpen(false);
+      void wallet.connectPreferred();
+      return;
+    }
+    setWalletOpen((value) => !value);
+  };
+
   return (
     <header className="premium-header" ref={rootRef}>
       <Container className="header-inner">
@@ -85,7 +95,7 @@ export default function Header({ locale, content }: { locale: Locale; content: S
               {locales.map((item) => <option value={item} key={item}>{localeShortLabels[item]}</option>)}
             </select>
           </label>
-          <button ref={walletButtonRef} type="button" className="button button--outline header-wallet" aria-expanded={walletOpen} aria-controls={walletId} aria-busy={wallet.connecting} onClick={() => { setWalletOpen((value) => !value); setMobileOpen(false); }}>
+          <button ref={walletButtonRef} type="button" className="button button--outline header-wallet" aria-expanded={walletOpen} aria-controls={walletId} aria-busy={wallet.connecting} onClick={handleWalletButton}>
             <Wallet aria-hidden="true" />
             <span aria-live="polite">{wallet.account ? shortenAddress(wallet.account) : wallet.connecting ? ui.wallet.connecting : ui.wallet.connect}</span>
           </button>
