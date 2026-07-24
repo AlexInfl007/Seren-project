@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { createWalletClient, custom, getAddress, type Address, type Hex } from "viem";
 import { polygon } from "viem/chains";
 import {
+  HISTORY_SCAN_CONFIG,
   POLYGON_CHAIN_ID,
   POLYGON_CHAIN_ID_HEX,
 } from "@/config/contract";
@@ -201,7 +202,26 @@ export function useWallet() {
       });
       setState((current) => ({ ...current, chainId: POLYGON_CHAIN_ID, error: undefined }));
     } catch (error) {
-      // No public fallback RPC is bundled. Users configure unknown networks in their wallet.
+      const code = typeof error === "object" && error ? (error as { code?: number }).code : undefined;
+      if (code === 4902) {
+        try {
+          await state.provider.request({
+            method: "wallet_addEthereumChain",
+            params: [{
+              chainId: POLYGON_CHAIN_ID_HEX,
+              chainName: "Polygon Mainnet",
+              nativeCurrency: { name: "POL", symbol: "POL", decimals: 18 },
+              blockExplorerUrls: ["https://polygonscan.com"],
+            }],
+          });
+          await state.provider.request({ method: "wallet_switchEthereumChain", params: [{ chainId: POLYGON_CHAIN_ID_HEX }] });
+          setState((current) => ({ ...current, chainId: POLYGON_CHAIN_ID, error: undefined }));
+          return;
+        } catch (addError) {
+          setState((current) => ({ ...current, error: normalizeContractError(addError) }));
+          return;
+        }
+      }
       setState((current) => ({ ...current, error: normalizeContractError(error) }));
     }
   }, [state.provider]);
@@ -222,7 +242,7 @@ export function useWallet() {
       explicitConnection: false,
       error: undefined,
     }));
-    window.sessionStorage.removeItem("seren.history.v1");
+    window.sessionStorage.removeItem(HISTORY_SCAN_CONFIG.sessionKey);
   }, []);
 
   const walletClient = useMemo(() => {
