@@ -88,6 +88,7 @@ export type LotteryState = {
   vrfOwnershipLock: Address;
   deploymentFactory: Address;
   lastUpdatedBlock: bigint;
+  lastUpdatedTimestamp: bigint;
 };
 
 type RoundWire = Omit<RoundSnapshot, "status"> & { status: number };
@@ -121,7 +122,7 @@ export async function readLotteryState(provider: Eip1193Provider, account: Addre
     ownershipLock,
     deploymentFactory,
     userBalance,
-    lastUpdatedBlock,
+    latestBlock,
   ] = await Promise.all([
     client.readContract({ address: CONTRACT_ADDRESS, abi: CONTRACT_ABI, functionName: "getCurrentRound" }),
     client.readContract({ address: CONTRACT_ADDRESS, abi: CONTRACT_ABI, functionName: "prizePool" }),
@@ -143,7 +144,7 @@ export async function readLotteryState(provider: Eip1193Provider, account: Addre
     client.readContract({ address: CONTRACT_ADDRESS, abi: CONTRACT_ABI, functionName: "vrfOwnershipLock" }),
     client.readContract({ address: CONTRACT_ADDRESS, abi: CONTRACT_ABI, functionName: "deploymentFactory" }),
     client.getBalance({ address: account }),
-    client.getBlockNumber(),
+    client.getBlock({ blockTag: "latest" }),
   ]);
 
   const roundWire = roundRaw as unknown as RoundWire;
@@ -169,7 +170,8 @@ export async function readLotteryState(provider: Eip1193Provider, account: Addre
     vrfOwnershipLocked: ownershipLocked as boolean,
     vrfOwnershipLock: ownershipLock as Address,
     deploymentFactory: deploymentFactory as Address,
-    lastUpdatedBlock,
+    lastUpdatedBlock: latestBlock.number ?? 0n,
+    lastUpdatedTimestamp: latestBlock.timestamp,
   };
 }
 

@@ -72,13 +72,11 @@ export default async function LocalePage({ params }: Props) {
         <FloatingPolCoins />
         <HeroSection locale={locale} content={content} />
         <TrustBar content={content} />
-        <SerenOracle locale={locale} />
         <LotteryDashboard
           locale={locale}
-          afterRound={<><HowItWorksSection content={content} /><PrizeStructureSection locale={locale} content={content} /><ReferralSection content={content} /></>}
-          beforeAccount={<AccountSection content={content} />}
+          afterAccount={<SerenOracle locale={locale} />}
           beforeTransparency={<TransparencySection content={content} />}
-          afterDashboard={<><FaqSection content={content} /><FinalCtaSection locale={locale} content={content} /></>}
+          afterDashboard={<><HowItWorksSection content={content} /><PrizeStructureSection locale={locale} content={content} /><AccountSection content={content} /><ReferralSection content={content} /><FaqSection content={content} /><FinalCtaSection locale={locale} content={content} /></>}
         />
       </main>
       <Footer locale={locale} content={content} />

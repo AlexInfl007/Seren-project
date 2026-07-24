@@ -14,6 +14,7 @@ type Props = {
   ticketPrice?: bigint;
   ticketsSold?: bigint;
   lastUpdatedBlock?: bigint;
+  lastUpdatedTimestamp?: bigint;
   content: ExperienceContent["pool"];
   labels: { round: string; status: string; ticketPrice: string; tickets: string };
 };
@@ -67,6 +68,7 @@ export default function PoolProgressIndicator(props: Props) {
       <div className="pool-indicator__meta">
         <span>{fill(props.content.remaining, { amount: remaining })}</span>
         {props.lastUpdatedBlock !== undefined && <span>{fill(props.content.lastBlock, { block: props.lastUpdatedBlock.toString() })}</span>}
+        {props.lastUpdatedTimestamp !== undefined && <time dateTime={new Date(Number(props.lastUpdatedTimestamp) * 1000).toISOString()}>{new Date(Number(props.lastUpdatedTimestamp) * 1000).toLocaleString()}</time>}
       </div>
       <dl className="pool-indicator__facts">
         <div><dt>{props.labels.round}</dt><dd>{props.roundId?.toString() ?? "—"}</dd></div>

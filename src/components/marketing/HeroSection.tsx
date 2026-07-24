@@ -5,8 +5,10 @@ import Container from "@/components/layout/Container";
 import { CONTRACT_LINK } from "@/config/contract";
 import type { Locale } from "@/i18n/locales";
 import type { SiteContent } from "@/i18n/siteContent";
+import { experienceContent } from "@/i18n/experienceContent";
 
 export default function HeroSection({ locale, content }: { locale: Locale; content: SiteContent }) {
+  const oracle = experienceContent[locale].oracle;
   return (
     <section id="home" className="premium-hero">
       <Image className="hero-art" src="/assets/Banner.png" alt="" width={1920} height={1080} priority sizes="100vw" />
@@ -18,6 +20,7 @@ export default function HeroSection({ locale, content }: { locale: Locale; conte
         <div className="hero-actions">
           <Link className="button button--primary" href={`/${locale}#lottery`}>{content.hero.primary}<ArrowDown /></Link>
           <a className="button button--glass" href={CONTRACT_LINK} target="_blank" rel="noreferrer">{content.hero.secondary}<ExternalLink /></a>
+          <Link className="button button--outline" href={`/${locale}#oracle`}>{oracle.title}</Link>
         </div>
         <small>{content.hero.note}</small>
       </Container>

@@ -80,7 +80,7 @@ export default function SerenOracle({ locale }: { locale: Locale }) {
   };
 
   return (
-    <section className="oracle-section" aria-labelledby="oracle-heading">
+    <section id="oracle" className="oracle-section" aria-labelledby="oracle-heading">
       <Container>
         <div className="oracle-intro">
           <span className="eyebrow"><Sparkles aria-hidden="true" />{content.eyebrow}</span>
